@@ -1,0 +1,2 @@
+rootProject.name='Pudding Player'
+include ':app'
