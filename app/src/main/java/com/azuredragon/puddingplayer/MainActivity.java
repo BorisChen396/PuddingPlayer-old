@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.RemoteException;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
+import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
@@ -17,6 +18,8 @@ import android.widget.TextView;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     MediaBrowserCompat browser;
@@ -36,6 +39,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         if(!browser.isConnected()) browser.connect();
+        if(MediaControllerCompat.getMediaController(this) != null) {
+            buildTransportTools(MediaControllerCompat.getMediaController(this).getQueue());
+        }
+        else {
+            buildTransportTools(null);
+        }
     }
 
     @Override
@@ -56,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
                 MediaSessionCompat.Token token = browser.getSessionToken();
                 MediaControllerCompat controller = new MediaControllerCompat(MainActivity.this, token);
                 MediaControllerCompat.setMediaController(MainActivity.this, controller);
-                buildTransportTools();
+                buildTransportTools(MediaControllerCompat.getMediaController(MainActivity.this).getQueue());
             } catch (RemoteException e) {
                 e.printStackTrace();
             }
@@ -71,9 +80,14 @@ public class MainActivity extends AppCompatActivity {
 
 
     MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
+        @Override
+        public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
+            super.onQueueChanged(queue);
+            buildTransportTools(queue);
+        }
     };
 
-    void buildTransportTools() {
+    void buildTransportTools(List<MediaSessionCompat.QueueItem> queue) {
         Button addButton = findViewById(R.id.button);
         final TextView videoLink = findViewById(R.id.editText);
         addButton.setOnClickListener(new View.OnClickListener() {
@@ -103,5 +117,20 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+        if(queue != null) {
+            TextView playlist = findViewById(R.id.textView);
+            StringBuilder str = new StringBuilder();
+            for(int i = 0; i < queue.size(); i++) {
+                if(queue.get(i).getDescription().getTitle() == null) {
+                    str.append(i+1).append(". ").append(
+                            queue.get(i).getDescription().getExtras().getString("videoId"))
+                            .append("\n");
+                }
+                else {
+                    str.append(i+1).append(". ").append(queue.get(i).getDescription().getTitle()).append("\n");
+                }
+            }
+            playlist.setText(str.toString());
+        }
     }
 }

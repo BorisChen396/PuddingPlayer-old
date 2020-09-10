@@ -173,5 +173,23 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 }
             }
         }
+
+        @Override
+        public void onSkipToNext() {
+            super.onSkipToNext();
+            List<MediaSessionCompat.QueueItem> queue = session.getController().getQueue();
+            currentItem++;
+            if(currentItem < queue.size()) {
+                session.getController().getTransportControls().playFromUri(
+                        queue.get(currentItem).getDescription().getMediaUri(), null);
+            }
+            else {
+                if(session.getController().getRepeatMode() == PlaybackStateCompat.REPEAT_MODE_ALL) {
+                    session.getController().getTransportControls().skipToQueueItem(0);
+                    return;
+                }
+                session.getController().getTransportControls().stop();
+            }
+        }
     };
 }
