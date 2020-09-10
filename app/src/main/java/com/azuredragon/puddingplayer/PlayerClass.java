@@ -4,7 +4,10 @@ import android.content.Context;
 import android.media.MediaPlayer;
 import android.net.wifi.WifiManager;
 import android.os.PowerManager;
+import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -12,15 +15,17 @@ import java.util.Objects;
 public class PlayerClass {
     private static WifiManager.WifiLock wifiLock;
     private static MediaPlayer player;
+    private static MediaSessionCompat session;
     private static MediaControllerCompat controller;
 
     static boolean isNull() {
         return player == null;
     }
 
-    static void initPlayer(Context mContext, MediaControllerCompat mController) {
+    static void initPlayer(Context mContext, MediaSessionCompat mSession) {
         if(!isNull()) return;
-        controller = mController;
+        session = mSession;
+        controller = mSession.getController();
         player = new MediaPlayer();
         player.reset();
         player.setWakeMode(mContext, PowerManager.PARTIAL_WAKE_LOCK);
@@ -56,6 +61,9 @@ public class PlayerClass {
         @Override
         public void onPrepared(MediaPlayer mp) {
             player.start();
+            session.setPlaybackState(new PlaybackStateCompat.Builder()
+                    .setState(PlaybackStateCompat.STATE_PLAYING, player.getCurrentPosition(), 1.0f)
+                    .build());
         }
     };
 
@@ -70,6 +78,9 @@ public class PlayerClass {
         @Override
         public void onCompletion(MediaPlayer mp) {
             controller.getTransportControls().skipToNext();
+            session.setPlaybackState(new PlaybackStateCompat.Builder()
+                    .setState(PlaybackStateCompat.STATE_STOPPED, player.getCurrentPosition(), 1.0f)
+                    .build());
         }
     };
 

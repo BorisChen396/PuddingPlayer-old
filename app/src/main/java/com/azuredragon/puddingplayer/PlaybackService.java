@@ -146,7 +146,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 try {
                     MediaDescriptionCompat des = session.getController().getQueue().get(currentItem).getDescription();
                     showPlayerNotification(des);
-                    Log.i(TAG, des.getExtras().getString("duration"));
                     MediaMetadataCompat metadata = new MediaMetadataCompat.Builder()
                             .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, des.getTitle().toString())
                             .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, des.getSubtitle().toString())
@@ -154,7 +153,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                                     Long.parseLong(des.getExtras().getString("duration")) * 1000)
                             .build();
                     session.setMetadata(metadata);
-                    if(PlayerClass.isNull()) PlayerClass.initPlayer(PlaybackService.this, session.getController());
+                    if(PlayerClass.isNull()) PlayerClass.initPlayer(PlaybackService.this, session);
                     PlayerClass.setPlayerSource(uri.toString());
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -190,6 +189,13 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 }
                 session.getController().getTransportControls().stop();
             }
+        }
+
+        @Override
+        public void onStop() {
+            super.onStop();
+            PlayerClass.stopPlayer();
+            stopService(new Intent(PlaybackService.this, PlaybackService.class));
         }
     };
 }
