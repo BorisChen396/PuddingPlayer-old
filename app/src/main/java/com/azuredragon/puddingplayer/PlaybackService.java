@@ -70,7 +70,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     @Override
     public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
         Log.i(TAG, "Received client request.");
-        startService(new Intent(this, PlaybackService.class));
         return new BrowserRoot("", null);
     }
 
@@ -142,6 +141,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         @Override
         public void onPlayFromUri(Uri uri, Bundle extras) {
             super.onPlayFromUri(uri, extras);
+            startService(new Intent(PlaybackService.this, PlaybackService.class));
             if(extras.getBoolean("isDeciphered")) {
                 try {
                     MediaDescriptionCompat des = session.getController().getQueue().get(currentItem).getDescription();
@@ -179,8 +179,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             List<MediaSessionCompat.QueueItem> queue = session.getController().getQueue();
             currentItem++;
             if(currentItem < queue.size()) {
-                session.getController().getTransportControls().playFromUri(
-                        queue.get(currentItem).getDescription().getMediaUri(), null);
+                session.getController().getTransportControls().skipToQueueItem(currentItem);
             }
             else {
                 if(session.getController().getRepeatMode() == PlaybackStateCompat.REPEAT_MODE_ALL) {

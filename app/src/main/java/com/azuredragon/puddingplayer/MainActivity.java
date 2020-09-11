@@ -13,7 +13,10 @@ import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import org.json.JSONException;
@@ -40,10 +43,10 @@ public class MainActivity extends AppCompatActivity {
         super.onStart();
         if(!browser.isConnected()) browser.connect();
         if(MediaControllerCompat.getMediaController(this) != null) {
-            buildTransportTools(MediaControllerCompat.getMediaController(this).getQueue());
+            buildTransportTools();
         }
         else {
-            buildTransportTools(null);
+            buildTransportTools();
         }
     }
 
@@ -60,12 +63,14 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onConnected() {
             super.onConnected();
-            try {;
+            try {
                 Log.i("BrowserClient", "Connected.");
                 MediaSessionCompat.Token token = browser.getSessionToken();
                 MediaControllerCompat controller = new MediaControllerCompat(MainActivity.this, token);
                 MediaControllerCompat.setMediaController(MainActivity.this, controller);
-                buildTransportTools(MediaControllerCompat.getMediaController(MainActivity.this).getQueue());
+                MediaControllerCompat.getMediaController(MainActivity.this).registerCallback(controllerCallback);
+                buildTransportTools();
+                refreshPlaylist(MediaControllerCompat.getMediaController(MainActivity.this).getQueue());
             } catch (RemoteException e) {
                 e.printStackTrace();
             }
@@ -83,54 +88,61 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
             super.onQueueChanged(queue);
-            buildTransportTools(queue);
+            refreshPlaylist(MediaControllerCompat.getMediaController(MainActivity.this).getQueue());
         }
     };
 
-    void buildTransportTools(List<MediaSessionCompat.QueueItem> queue) {
+    void buildTransportTools() {
         Button addButton = findViewById(R.id.button);
         final TextView videoLink = findViewById(R.id.editText);
         addButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                try {
-                    String link = videoLink.getText().toString();
-                    JSONObject param;
-                    if(link.contains("\\?")) {
-                        if(link.contains("youtu.be")) link =
-                                link.replace("youtu.be/", "www.youtube.com/watch?v=");
-                        param = VideoDecipher.paramToJsonObject(link.split("\\?")[1]);
-                    }
-                    else {
-                        param = new JSONObject().put("v", link);
-                    }
+                String[] queueItems = videoLink.getText().toString().split(";");
+                for(int i = 0; i < queueItems.length; i++) {
+                    try {
+                        String link = queueItems[i];
+                        JSONObject param;
+                        if(link.contains("youtu.be")) {
+                            link = link.replace("youtu.be/", "www.youtube.com/watch?v=");
+                        }
 
-                    Bundle bundle = new Bundle();
-                    bundle.putCharSequence("videoId", param.getString("v"));
-                    bundle.putBoolean("isDeciphered", false);
-                    MediaControllerCompat.getMediaController(MainActivity.this).addQueueItem(
-                            new MediaDescriptionCompat.Builder()
-                                    .setExtras(bundle)
-                                    .build());
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                        if(link.contains("?")) {
+                            param = VideoDecipher.paramToJsonObject(link.split("\\?")[1]);
+                        }
+                        else {
+                            param = new JSONObject().put("v", link);
+                        }
+
+                        Bundle bundle = new Bundle();
+                        bundle.putCharSequence("videoId", param.getString("v"));
+                        bundle.putBoolean("isDeciphered", false);
+                        MediaControllerCompat.getMediaController(MainActivity.this).addQueueItem(
+                                new MediaDescriptionCompat.Builder()
+                                        .setExtras(bundle)
+                                        .build());
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         });
-        if(queue != null) {
-            TextView playlist = findViewById(R.id.textView);
-            StringBuilder str = new StringBuilder();
-            for(int i = 0; i < queue.size(); i++) {
-                if(queue.get(i).getDescription().getTitle() == null) {
-                    str.append(i+1).append(". ").append(
-                            queue.get(i).getDescription().getExtras().getString("videoId"))
-                            .append("\n");
-                }
-                else {
-                    str.append(i+1).append(". ").append(queue.get(i).getDescription().getTitle()).append("\n");
-                }
+    }
+
+    void refreshPlaylist(List<MediaSessionCompat.QueueItem> queue) {
+        ListView playlistView = findViewById(R.id.playlistView);
+        String[] str = new String[queue.size()];
+        for(int i = 0; i < queue.size(); i++) {
+            if(queue.get(i).getDescription().getTitle() == null) {
+                str[i] = (i+1) + ". " + queue.get(i).getDescription().getExtras().getString("videoId") + ("\n");
             }
-            playlist.setText(str.toString());
+            else {
+                str[i] = (i+1) + ". " + queue.get(i).getDescription().getTitle() + "\n";
+            }
         }
+        playlistView.setAdapter(new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_list_item_1,
+                str));
     }
 }
