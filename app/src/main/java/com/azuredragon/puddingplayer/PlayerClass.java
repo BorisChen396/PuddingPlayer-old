@@ -7,6 +7,7 @@ import android.os.PowerManager;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -63,6 +64,7 @@ public class PlayerClass {
         session.setPlaybackState(new PlaybackStateCompat.Builder()
                 .setState(PlaybackStateCompat.STATE_PAUSED, player.getCurrentPosition(), 1.0f)
                 .build());
+        Log.i("MediaPlayer", "Paused.");
     }
 
     static void seekTo(long pos) {

@@ -77,6 +77,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         super.onDestroy();
         if(!PlayerClass.isNull()) PlayerClass.stopPlayer();
         session.setActive(false);
+        session = null;
         isRunning = false;
         Log.i(TAG, "Service stopped.");
     }

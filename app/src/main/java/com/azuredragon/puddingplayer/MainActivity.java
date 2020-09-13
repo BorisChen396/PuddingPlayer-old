@@ -167,6 +167,52 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
+        final Button pausePlayButton = findViewById(R.id.pausePlayButton);
+        pausePlayButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(!browser.isConnected()) browser.connect();
+                if(MediaControllerCompat.getMediaController(MainActivity.this)
+                        .getPlaybackState().getState() == PlaybackStateCompat.STATE_PLAYING) {
+                    MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().pause();
+                    pausePlayButton.setText("Play");
+                }
+                if(MediaControllerCompat.getMediaController(MainActivity.this)
+                        .getPlaybackState().getState() == PlaybackStateCompat.STATE_PAUSED) {
+                    MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().play();
+                    pausePlayButton.setText("Pause");
+                }
+            }
+        });
+        View.OnClickListener pauseClicked = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().pause();
+                pausePlayButton.setText("Play");
+            }
+        };
+        View.OnClickListener playClicked = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().play();
+                pausePlayButton.setText("Pause");
+            }
+        };
+        Button nextButton = findViewById(R.id.nextButton);
+        nextButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().skipToNext();
+            }
+        });
+        Button prevButton = findViewById(R.id.prevButton);
+        prevButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().skipToPrevious();
+            }
+        });
     }
 
     void refreshPlaylist(List<MediaSessionCompat.QueueItem> queue) {
