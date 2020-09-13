@@ -39,7 +39,7 @@ public class VideoDecipher {
 
     private static void getVideoInfo(final String videoId) throws Exception {
         String eurl = Uri.encode("http://kej.tw/");
-        int sts = 18508;
+        int sts = 18516;
         final String link = "https://www.youtube.com/get_video_info?" +
                 jsonObjectToParam(new JSONObject(
                         "{eurl: \"" + eurl + "\"," +
@@ -108,7 +108,7 @@ public class VideoDecipher {
             musicSource = Uri.decode(signatureCipher.getString("url")) + "&" +
                     jsonObjectToParam(new JSONObject("{" +
                             "\"" + Uri.decode(signatureCipher.getString("sp")) + "\": \"" +
-                            Dv.decipherSignature(Uri.decode(signatureCipher.getString("s"))) +
+                            Cv.decipherSignature(Uri.decode(signatureCipher.getString("s"))) +
                             "\"}"));
         }
 
@@ -163,7 +163,7 @@ public class VideoDecipher {
         new Thread(downloadAlbum).start();
     }
 
-    private static class Dv {
+    private static class Cv {
         private static String decipherSignature(String s) {
             String[] t = s.split("");
             String[] a;
@@ -174,11 +174,12 @@ public class VideoDecipher {
             else {
                 a = t;
             }
-            a = Dv.p4(a, 2);
-            Dv.tS(a, 28);
-            Dv.tS(a, 46);
-            a = Dv.Je(a);
-            a = Dv.p4(a, 1);
+            Cv.eK(a, 3);
+            a = Cv.rz(a);
+            Cv.DY(a, 1);
+            Cv.DY(a, 3);
+            Cv.DY(a, 51);
+            a = Cv.rz(a);
             StringBuilder sig = new StringBuilder();
             for (String value : a) {
                 sig.append(value);
@@ -186,7 +187,7 @@ public class VideoDecipher {
             return sig.toString();
         }
 
-        private static String[] Je(String[] a) {
+        private static String[] rz(String[] a) {
             String[] b = new String[a.length];
             for(int i = 0; i < b.length; i++) {
                 b[i] = a[a.length - i - 1];
@@ -194,13 +195,13 @@ public class VideoDecipher {
             return b;
         }
 
-        private static String[] p4(String[] a, int b) {
+        private static String[] eK(String[] a, int b) {
             String[] c = new String[a.length - b];
             if (a.length - b >= 0) System.arraycopy(a, b, c, 0, a.length - b);
             return c;
         }
 
-        private static void tS(String[] a, int b) {
+        private static void DY(String[] a, int b) {
             String c = a[0];
             a[0] = a[b % a.length];
             a[b % a.length] = c;
