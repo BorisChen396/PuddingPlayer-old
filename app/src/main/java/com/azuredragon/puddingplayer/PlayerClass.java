@@ -50,6 +50,20 @@ public class PlayerClass {
         player.setLooping(loop);
     }
 
+    static void resumePlayer() {
+        player.start();
+        session.setPlaybackState(new PlaybackStateCompat.Builder()
+                .setState(PlaybackStateCompat.STATE_PLAYING, player.getCurrentPosition(), 1.0f)
+                .build());
+    }
+
+    static void pausePlayer() {
+        player.pause();
+        session.setPlaybackState(new PlaybackStateCompat.Builder()
+                .setState(PlaybackStateCompat.STATE_PAUSED, player.getCurrentPosition(), 1.0f)
+                .build());
+    }
+
     static void stopPlayer() {
         if(isNull()) throw new IllegalStateException("MediaPlayer is null.");
         player.reset();
@@ -60,17 +74,17 @@ public class PlayerClass {
     private static MediaPlayer.OnPreparedListener playerPrepared = new MediaPlayer.OnPreparedListener() {
         @Override
         public void onPrepared(MediaPlayer mp) {
-            player.start();
-            session.setPlaybackState(new PlaybackStateCompat.Builder()
-                    .setState(PlaybackStateCompat.STATE_PLAYING, player.getCurrentPosition(), 1.0f)
-                    .build());
+            controller.getTransportControls().play();
         }
     };
 
     private static MediaPlayer.OnBufferingUpdateListener playerBuffering = new MediaPlayer.OnBufferingUpdateListener() {
         @Override
         public void onBufferingUpdate(MediaPlayer mp, int percent) {
-
+            session.setPlaybackState(new PlaybackStateCompat.Builder()
+                    .setState(PlaybackStateCompat.STATE_PLAYING, player.getCurrentPosition(), 1.0f)
+                    .setBufferedPosition(percent * player.getDuration() / 100)
+                    .build());
         }
     };
 
@@ -78,9 +92,6 @@ public class PlayerClass {
         @Override
         public void onCompletion(MediaPlayer mp) {
             controller.getTransportControls().skipToNext();
-            session.setPlaybackState(new PlaybackStateCompat.Builder()
-                    .setState(PlaybackStateCompat.STATE_STOPPED, player.getCurrentPosition(), 1.0f)
-                    .build());
         }
     };
 

@@ -5,18 +5,21 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.RemoteException;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import org.json.JSONException;
@@ -31,7 +34,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         browser = new MediaBrowserCompat(this,
                 new ComponentName(this, PlaybackService.class),
                 connectionCallback,
@@ -46,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
             buildTransportTools();
         }
         else {
-            buildTransportTools();
+           buildTransportTools();
         }
     }
 
@@ -85,10 +87,39 @@ public class MainActivity extends AppCompatActivity {
 
 
     MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
+        Handler mHandler;
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+
+                mHandler.postDelayed(this, 1000);
+            }
+        };
+
         @Override
         public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
             super.onQueueChanged(queue);
             refreshPlaylist(MediaControllerCompat.getMediaController(MainActivity.this).getQueue());
+        }
+
+        @Override
+        public void onPlaybackStateChanged(final PlaybackStateCompat state) {
+            super.onPlaybackStateChanged(state);
+
+            if(state.getState() == PlaybackStateCompat.STATE_STOPPED) {
+                browser.disconnect();
+                if(mHandler != null) {
+                    mHandler.removeCallbacks(r);
+                    mHandler = null;
+                }
+            }
+            if(state.getState() == PlaybackStateCompat.STATE_PLAYING) {
+                if(mHandler == null) {
+
+                    mHandler = new Handler();
+                    mHandler.post(r);
+                }
+            }
         }
     };
 
@@ -98,6 +129,7 @@ public class MainActivity extends AppCompatActivity {
         addButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if(!browser.isConnected()) browser.connect();
                 String[] queueItems = videoLink.getText().toString().split(";");
                 for(int i = 0; i < queueItems.length; i++) {
                     try {

@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Pudding Player</string>
     <string name="notifiyChannel">Player</string>
+    <string name="notifyDes">This channel is used to show the player notification.</string>
 </resources>
