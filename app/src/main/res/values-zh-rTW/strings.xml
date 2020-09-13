@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pudding Player</string>
+    <string name="notifiyChannel">播放</string>
+    <string name="notifyDes">此通知頻道用以顯示播放通知。</string>
+</resources>

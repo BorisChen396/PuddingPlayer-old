@@ -53,6 +53,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        if (MediaControllerCompat.getMediaController(MainActivity.this) != null) {
+            MediaControllerCompat.getMediaController(MainActivity.this).unregisterCallback(controllerCallback);
+        }
+        browser.disconnect();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (MediaControllerCompat.getMediaController(MainActivity.this) != null) {

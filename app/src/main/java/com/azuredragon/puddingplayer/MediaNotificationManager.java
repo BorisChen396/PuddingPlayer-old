@@ -3,12 +3,16 @@ package com.azuredragon.puddingplayer;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -81,6 +85,8 @@ public class MediaNotificationManager {
             notifyBuilder.setPriority(NotificationCompat.PRIORITY_LOW);
         }
 
+        Intent notificationIntent = new Intent(mService, MainActivity.class);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         int[] a = new int[actions.length];
         for(int i = 0; i < actions.length; i++) a[i] = i;
         notifyBuilder.setContentTitle(des.getTitle())
@@ -88,11 +94,16 @@ public class MediaNotificationManager {
                 .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
                         .setMediaSession(token)
                         .setShowActionsInCompactView(a))
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setLargeIcon(BitmapFactory.decodeFile(des.getIconUri().toString()))
+                .setSmallIcon(R.drawable.ic_notify_player)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentIntent(PendingIntent.getActivity(mService, 0,
+                        notificationIntent, 0))
                 .setDeleteIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(mService,
                         PlaybackStateCompat.ACTION_STOP));
+        if(des.getIconUri() != null) {
+            Bitmap origin = BitmapFactory.decodeFile(des.getIconUri().toString());
+            notifyBuilder.setLargeIcon(Bitmap.createBitmap(origin, origin.getWidth() / 10, 0, origin.getHeight(), origin.getHeight()));
+        }
         for (NotificationCompat.Action action : actions) {
             notifyBuilder.addAction(action);
         }

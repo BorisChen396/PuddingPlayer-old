@@ -60,6 +60,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         setSessionToken(session.getSessionToken());
 
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        audioManager.setMode(AudioManager.MODE_NORMAL);
         MediaIntentReceiver.initReceiver(session);
         audioManager.registerMediaButtonEventReceiver(new ComponentName(this, PlaybackService.class));
         mManager = new MediaNotificationManager(this);
@@ -117,8 +118,17 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             startService(new Intent(PlaybackService.this, PlaybackService.class));
             if(extras.getBoolean("isDeciphered")) {
                 try {
+                    startForeground(MediaNotificationManager.NOTIFICATION_ID,
+                            mManager.getNotification(
+                                    session.getSessionToken(),
+                                    new MediaDescriptionCompat.Builder()
+                                            .setTitle("Preparing...")
+                                            .setSubtitle("Preparing player...")
+                                            .build(),
+                                    new NotificationCompat.Action[] {}));
                     MediaDescriptionCompat des = session.getController().getQueue().get(currentItem).getDescription();
                     MediaMetadataCompat metadata = new MediaMetadataCompat.Builder()
+                            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, des.getTitle().toString())
                             .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, des.getTitle().toString())
                             .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, des.getSubtitle().toString())
                             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION,
@@ -151,6 +161,19 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         }
 
         @Override
+        public void onSkipToPrevious() {
+            super.onSkipToPrevious();
+            List<MediaSessionCompat.QueueItem> queue = session.getController().getQueue();
+            currentItem--;
+            if(currentItem >= 0) {
+                session.getController().getTransportControls().skipToQueueItem(currentItem);
+            }
+            else {
+                currentItem++;
+            }
+        }
+
+        @Override
         public void onSkipToNext() {
             super.onSkipToNext();
             List<MediaSessionCompat.QueueItem> queue = session.getController().getQueue();
@@ -159,6 +182,10 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 session.getController().getTransportControls().skipToQueueItem(currentItem);
             }
             else {
+                if(!PlayerClass.isCompleted) {
+                    currentItem--;
+                    return;
+                }
                 if(session.getController().getRepeatMode() == PlaybackStateCompat.REPEAT_MODE_ALL) {
                     session.getController().getTransportControls().skipToQueueItem(0);
                     return;
@@ -203,29 +230,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         @Override
         public void onPause() {
             super.onPause();
-            final NotificationCompat.Action[] actions = {
-                    new NotificationCompat.Action(
-                            R.drawable.ic_button_prev,
-                            "Previous",
-                            MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                    PlaybackService.this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
-                            )
-                    ),
-                    new NotificationCompat.Action(
-                            R.drawable.ic_button_play,
-                            "Play",
-                            MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                    PlaybackService.this, PlaybackStateCompat.ACTION_PLAY
-                            )
-                    ),
-                    new NotificationCompat.Action(
-                            R.drawable.ic_button_next,
-                            "Next",
-                            MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                    PlaybackService.this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT
-                            )
-                    )
-            };
             stopForeground(false);
             mManager.getManager().notify(MediaNotificationManager.NOTIFICATION_ID,
                     mManager.getNotification(
@@ -237,6 +241,12 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                                     MediaNotificationManager.mNextIntent
                             }));
             PlayerClass.pausePlayer();
+        }
+
+        @Override
+        public void onSeekTo(long pos) {
+            super.onSeekTo(pos);
+            PlayerClass.seekTo(pos);
         }
 
         @Override

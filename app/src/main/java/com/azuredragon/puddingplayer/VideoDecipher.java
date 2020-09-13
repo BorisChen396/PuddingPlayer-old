@@ -16,7 +16,9 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -26,10 +28,12 @@ public class VideoDecipher {
     static String TAG = "VideoDecipher";
     private static Context context;
     private static MediaSessionCompat session;
+    private static String appDir;
 
     static void playMusicFromUri(String videoId, MediaSessionCompat mSession, Context mContext) throws Exception {
         context = mContext;
         session = mSession;
+        appDir = context.getApplicationInfo().dataDir;
         getVideoInfo(videoId);
     }
 
@@ -43,11 +47,11 @@ public class VideoDecipher {
                                 "video_id: \"" + videoId + "\"}"
                 ));
 
-        Runnable download = new Runnable() {
+        Runnable downloadVideoInfo = new Runnable() {
             @Override
             public void run() {
                 InputStream input;
-                String filePath = context.getApplicationInfo().dataDir + "/" + videoId;
+                String filePath = appDir + "/" + videoId;
                 try {
                     input = new URL(link).openStream();
                     FileOutputStream output = new FileOutputStream(filePath);
@@ -72,7 +76,7 @@ public class VideoDecipher {
                 }
             }
         };
-        new Thread(download).start();
+        new Thread(downloadVideoInfo).start();
     }
 
     private static void decipherInfo(String videoInfo) throws Exception {
@@ -94,7 +98,7 @@ public class VideoDecipher {
                 }
             }
         }
-        String musicSource;
+        final String musicSource;
         if(audioSources.getJSONObject(0).has("url")) {
             musicSource = audioSources.getJSONObject(0).getString("url");
         }
@@ -108,30 +112,55 @@ public class VideoDecipher {
                             "\"}"));
         }
 
-        Bundle bundle = new Bundle();
+        final Bundle bundle = new Bundle();
         bundle.putString("duration", playerResponse.getJSONObject("videoDetails").getString("lengthSeconds"));
         bundle.putString("videoId", playerResponse.getJSONObject("videoDetails").getString("videoId"));
         bundle.putLong("expireTime", (System.currentTimeMillis() / 1000) +
                 Long.parseLong(playerResponse.getJSONObject("streamingData").getString("expiresInSeconds")));
         bundle.putBoolean("isDeciphered", true);
 
-        JSONArray thumbnails = playerResponse.getJSONObject("videoDetails")
-                .getJSONObject("thumbnail").getJSONArray("thumbnails");
+        final String albumArt = playerResponse.getJSONObject("videoDetails")
+                .getJSONObject("thumbnail").getJSONArray("thumbnails")
+                .getJSONObject(playerResponse.getJSONObject("videoDetails")
+                        .getJSONObject("thumbnail").getJSONArray("thumbnails").length() - 2)
+                .getString("url");
 
-        MediaDescriptionCompat des = new MediaDescriptionCompat.Builder()
-                .setTitle(URLDecoder.decode(
-                        playerResponse.getJSONObject("videoDetails").getString("title"), "UTF-8"))
-                .setSubtitle(URLDecoder.decode(
-                        playerResponse.getJSONObject("videoDetails").getString("author"), "UTF-8"))
-                .setMediaUri(Uri.parse(musicSource))
-                .setIconUri(Uri.parse(thumbnails.getJSONObject(thumbnails.length() - 2).getString("url")))
-                .setExtras(bundle)
-                .build();
-        List<MediaSessionCompat.QueueItem> newQueue = session.getController().getQueue();
-        newQueue.set(PlaybackService.currentItem,
-                new MediaSessionCompat.QueueItem(des, PlaybackService.currentItem));
-        session.setQueue(newQueue);
-        session.getController().getTransportControls().skipToQueueItem(PlaybackService.currentItem);
+        final JSONObject _playerResponse = playerResponse;
+        Runnable downloadAlbum = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    InputStream in = new URL(albumArt).openStream();
+                    FileOutputStream out = new FileOutputStream(appDir + "/albumArt_" + bundle.getString("videoId"));
+                    byte[] buffer = new byte[1024];
+                    int nextByte;
+                    while((nextByte = in.read(buffer, 0, 1024)) != -1) {
+                        out.write(buffer, 0, nextByte);
+                    }
+                    out.close();
+                    in.close();
+
+                    MediaDescriptionCompat des = new MediaDescriptionCompat.Builder()
+                            .setTitle(URLDecoder.decode(
+                                    _playerResponse.getJSONObject("videoDetails").getString("title"), "UTF-8"))
+                            .setSubtitle(URLDecoder.decode(
+                                    _playerResponse.getJSONObject("videoDetails").getString("author"), "UTF-8"))
+                            .setMediaUri(Uri.parse(musicSource))
+                            .setIconUri(Uri.parse(appDir + "/albumArt_" + bundle.getString("videoId")))
+                            .setExtras(bundle)
+                            .build();
+                    List<MediaSessionCompat.QueueItem> newQueue = session.getController().getQueue();
+                    newQueue.set(PlaybackService.currentItem,
+                            new MediaSessionCompat.QueueItem(des, PlaybackService.currentItem));
+                    session.setQueue(newQueue);
+                    session.getController().getTransportControls().skipToQueueItem(PlaybackService.currentItem);
+                } catch (IOException | JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        new Thread(downloadAlbum).start();
     }
 
     private static class Dv {

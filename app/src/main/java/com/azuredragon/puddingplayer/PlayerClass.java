@@ -18,6 +18,8 @@ public class PlayerClass {
     private static MediaSessionCompat session;
     private static MediaControllerCompat controller;
 
+    static boolean isCompleted;
+
     static boolean isNull() {
         return player == null;
     }
@@ -64,6 +66,10 @@ public class PlayerClass {
                 .build());
     }
 
+    static void seekTo(long pos) {
+        player.seekTo((int) pos);
+    }
+
     static void stopPlayer() {
         if(isNull()) throw new IllegalStateException("MediaPlayer is null.");
         player.reset();
@@ -74,6 +80,7 @@ public class PlayerClass {
     private static MediaPlayer.OnPreparedListener playerPrepared = new MediaPlayer.OnPreparedListener() {
         @Override
         public void onPrepared(MediaPlayer mp) {
+            isCompleted = false;
             controller.getTransportControls().play();
         }
     };
@@ -91,6 +98,7 @@ public class PlayerClass {
     private static MediaPlayer.OnCompletionListener playerCompleted = new MediaPlayer.OnCompletionListener() {
         @Override
         public void onCompletion(MediaPlayer mp) {
+            isCompleted = true;
             controller.getTransportControls().skipToNext();
         }
     };

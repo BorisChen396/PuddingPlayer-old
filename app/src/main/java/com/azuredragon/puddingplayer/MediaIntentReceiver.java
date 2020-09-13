@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 import android.view.KeyEvent;
 
@@ -16,9 +17,17 @@ public class MediaIntentReceiver extends BroadcastReceiver {
             KeyEvent keyEvent = (KeyEvent) intent.getExtras().get(Intent.EXTRA_KEY_EVENT);
             switch (keyEvent.getKeyCode()) {
                 case KeyEvent.KEYCODE_HEADSETHOOK:
-                    break;
 
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                    switch (session.getController().getPlaybackState().getState()) {
+                        case PlaybackStateCompat.STATE_PLAYING:
+                            session.getController().getTransportControls().pause();
+                            break;
+
+                        case PlaybackStateCompat.STATE_PAUSED:
+                            session.getController().getTransportControls().play();
+                            break;
+                    }
                     break;
 
                 case KeyEvent.KEYCODE_MEDIA_PLAY:
