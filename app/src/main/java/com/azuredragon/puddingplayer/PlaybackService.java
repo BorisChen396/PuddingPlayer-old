@@ -1,43 +1,28 @@
 package com.azuredragon.puddingplayer;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
-import android.media.session.MediaSession;
-import android.media.session.PlaybackState;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
-import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.app.BundleCompat;
 import androidx.core.app.NotificationCompat;
-import androidx.media.AudioFocusRequestCompat;
-import androidx.media.AudioManagerCompat;
 import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.session.MediaButtonReceiver;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +33,8 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     MediaSessionCompat session;
     AudioManager audioManager;
     static int currentItem;
+
+    private static MediaNotificationManager mManager;
 
     @Override
     public void onCreate() {
@@ -70,10 +57,12 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         session.setCallback(sessionCallback);
         session.setQueue(new ArrayList<MediaSessionCompat.QueueItem>());
         session.setActive(true);
+        setSessionToken(session.getSessionToken());
+
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         MediaIntentReceiver.initReceiver(session);
         audioManager.registerMediaButtonEventReceiver(new ComponentName(this, PlaybackService.class));
-        setSessionToken(session.getSessionToken());
+        mManager = new MediaNotificationManager(this);
     }
 
     @Override
@@ -144,13 +133,15 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             }
             else {
                 try {
-                    NotificationCompat.Builder builder = NotificationClass.getNotificationBuilder(
-                            PlaybackService.this, session,
-                            new MediaDescriptionCompat.Builder()
-                                    .setTitle("Preparing...")
-                                    .setSubtitle("Getting video Info...")
-                                    .build(), new NotificationCompat.Action[0]);
-                    startForeground(NotificationClass.NOTIFICATION_ID, builder.build());
+                    startForeground(MediaNotificationManager.NOTIFICATION_ID,
+                            mManager.getNotification(
+                                    session.getSessionToken(),
+                                    new MediaDescriptionCompat.Builder()
+                                            .setTitle("Preparing...")
+                                            .setSubtitle("Getting video Info...")
+                                            .build(),
+                                    new NotificationCompat.Action[] {}));
+
                     VideoDecipher.playMusicFromUri(String.valueOf(extras.getCharSequence("videoId")),
                             session, PlaybackService.this);
                 } catch (Exception e) {
@@ -162,7 +153,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         @Override
         public void onSkipToNext() {
             super.onSkipToNext();
-            Log.i(TAG, "Next...");
             List<MediaSessionCompat.QueueItem> queue = session.getController().getQueue();
             currentItem++;
             if(currentItem < queue.size()) {
@@ -199,44 +189,15 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                         AudioManager.STREAM_MUSIC,
                         AudioManager.AUDIOFOCUS_GAIN);
             }
-
-            final NotificationCompat.Action[] actions = {
-                    new NotificationCompat.Action(
-                            R.drawable.ic_button_prev,
-                            "Previous",
-                            MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                    PlaybackService.this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
-                            )
-                    ),
-                    new NotificationCompat.Action(
-                            R.drawable.ic_button_pause,
-                            "Pause",
-                            MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                    PlaybackService.this, PlaybackStateCompat.ACTION_PAUSE
-                            )
-                    ),
-                    new NotificationCompat.Action(
-                            R.drawable.ic_button_next,
-                            "Next",
-                            MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                    PlaybackService.this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT
-                            )
-                    )};
+            startForeground(MediaNotificationManager.NOTIFICATION_ID, mManager.getNotification(
+                    session.getSessionToken(),
+                    session.getController().getQueue().get(currentItem).getDescription(),
+                    new NotificationCompat.Action[] {
+                            MediaNotificationManager.mPrevIntent,
+                            MediaNotificationManager.mPauseIntent,
+                            MediaNotificationManager.mNextIntent
+                    }));
             PlayerClass.resumePlayer();
-            Runnable showNotification = new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        NotificationCompat.Builder builder = NotificationClass.getNotificationBuilder(
-                                PlaybackService.this, session,
-                                session.getController().getQueue().get(currentItem).getDescription(), actions);
-                        startForeground(NotificationClass.NOTIFICATION_ID, builder.build());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            };
-            new Thread(showNotification).start();
         }
 
         @Override
@@ -265,22 +226,17 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                             )
                     )
             };
+            stopForeground(false);
+            mManager.getManager().notify(MediaNotificationManager.NOTIFICATION_ID,
+                    mManager.getNotification(
+                            session.getSessionToken(),
+                            session.getController().getQueue().get(currentItem).getDescription(),
+                            new NotificationCompat.Action[]{
+                                    MediaNotificationManager.mPrevIntent,
+                                    MediaNotificationManager.mPlayIntent,
+                                    MediaNotificationManager.mNextIntent
+                            }));
             PlayerClass.pausePlayer();
-            Runnable r = new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        NotificationCompat.Builder builder = NotificationClass.getNotificationBuilder(
-                                PlaybackService.this, session,
-                                session.getController().getQueue().get(currentItem).getDescription(), actions);
-                        stopForeground(false);
-                        NotificationClass.getNotificationManager().notify(NotificationClass.NOTIFICATION_ID, builder.build());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            };
-            new Thread(r).start();
         }
 
         @Override
