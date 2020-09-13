@@ -1,6 +1,5 @@
 package com.azuredragon.puddingplayer;
 
-import android.app.Notification;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.media.AudioAttributes;
@@ -15,6 +14,7 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -151,7 +151,11 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                                             .setSubtitle("Getting video Info...")
                                             .build(),
                                     new NotificationCompat.Action[] {}));
-
+                    if(!new FileHandler(PlaybackService.this).isNetworkConnected()) {
+                        Toast.makeText(PlaybackService.this, "Network disconnected.", Toast.LENGTH_LONG).show();
+                        session.getController().getTransportControls().stop();
+                        return;
+                    }
                     VideoDecipher.playMusicFromUri(String.valueOf(extras.getCharSequence("videoId")),
                             session, PlaybackService.this);
                 } catch (Exception e) {
@@ -200,6 +204,11 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         @Override
         public void onPlay() {
             super.onPlay();
+            if(!new FileHandler(PlaybackService.this).isNetworkConnected()) {
+                Toast.makeText(PlaybackService.this, "Network disconnected.", Toast.LENGTH_LONG).show();
+                session.getController().getTransportControls().stop();
+                return;
+            }
             if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 audioManager.requestAudioFocus(
                         new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)

@@ -4,7 +4,6 @@ import android.content.Context;
 import android.media.MediaPlayer;
 import android.net.wifi.WifiManager;
 import android.os.PowerManager;
-import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
@@ -71,7 +70,7 @@ public class PlayerClass {
     }
 
     static void stopPlayer() {
-        if(isNull()) throw new IllegalStateException("MediaPlayer is null.");
+        if(isNull()) return;
         player.reset();
         player.release();
         player = null;
