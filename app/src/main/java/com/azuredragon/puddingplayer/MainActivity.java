@@ -1,10 +1,8 @@
 package com.azuredragon.puddingplayer;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.net.ConnectivityManagerCompat;
 
 import android.content.ComponentName;
-import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.RemoteException;
@@ -19,7 +17,6 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -139,18 +136,17 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if(!browser.isConnected()) browser.connect();
                 String[] queueItems = videoLink.getText().toString().split(";");
-                for(int i = 0; i < queueItems.length; i++) {
+                for (String queueItem : queueItems) {
                     try {
-                        String link = queueItems[i];
+                        String link = queueItem;
                         JSONObject param;
-                        if(link.contains("youtu.be")) {
+                        if (link.contains("youtu.be")) {
                             link = link.replace("youtu.be/", "www.youtube.com/watch?v=");
                         }
 
-                        if(link.contains("?")) {
+                        if (link.contains("?")) {
                             param = VideoInfo.paramToJsonObject(link.split("\\?")[1]);
-                        }
-                        else {
+                        } else {
                             param = new JSONObject().put("v", link);
                         }
 
@@ -176,29 +172,15 @@ public class MainActivity extends AppCompatActivity {
                 if(MediaControllerCompat.getMediaController(MainActivity.this)
                         .getPlaybackState().getState() == PlaybackStateCompat.STATE_PLAYING) {
                     MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().pause();
-                    pausePlayButton.setText("Play");
+                    pausePlayButton.setText(getResources().getString(R.string.button_play));
                 }
                 if(MediaControllerCompat.getMediaController(MainActivity.this)
                         .getPlaybackState().getState() == PlaybackStateCompat.STATE_PAUSED) {
                     MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().play();
-                    pausePlayButton.setText("Pause");
+                    pausePlayButton.setText(getResources().getString(R.string.button_pause));
                 }
             }
         });
-        View.OnClickListener pauseClicked = new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().pause();
-                pausePlayButton.setText("Play");
-            }
-        };
-        View.OnClickListener playClicked = new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().play();
-                pausePlayButton.setText("Pause");
-            }
-        };
         Button nextButton = findViewById(R.id.nextButton);
         nextButton.setOnClickListener(new View.OnClickListener() {
             @Override

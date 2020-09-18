@@ -126,6 +126,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                                     .setSubtitle("Getting video information...").build(),
                             new NotificationCompat.Action[0]
                     ));
+            if(!PlayerClass.isNull()) PlayerClass.stopPlayer();
             currentItem = (int)id;
             MediaSessionCompat.QueueItem queueItem = session.getController().getQueue().get((int)id);
             if(!queueItem.getDescription().getExtras().getBoolean("isDeciphered")) {

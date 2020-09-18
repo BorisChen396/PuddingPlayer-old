@@ -3,4 +3,11 @@
     <string name="app_name">Pudding Player</string>
     <string name="notifiyChannel">播放</string>
     <string name="notifyDes">此通知頻道用以顯示播放通知。</string>
+    <string name="button_play">播放</string>
+    <string name="button_stop">停止</string>
+    <string name="button_pause">暫停</string>
+    <string name="button_next">下一首</string>
+    <string name="button_prev">上一首</string>
+    <string name="button_submit">新增歌曲</string>
+    <string name="edittext_hint_link">在此輸入YouTube影片連結......</string>
 </resources>
