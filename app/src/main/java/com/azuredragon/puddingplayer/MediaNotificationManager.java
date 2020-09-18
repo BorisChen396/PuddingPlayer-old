@@ -92,7 +92,8 @@ public class MediaNotificationManager {
                 .setDeleteIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(mService,
                         PlaybackStateCompat.ACTION_STOP));
         if(des.getIconUri() != null) {
-            Bitmap origin = BitmapFactory.decodeFile(des.getIconUri().toString());
+            Bitmap origin = BitmapFactory.decodeFile(
+                    FileHandler.APPLICATION_DATA_DIR + "album_" + des.getExtras().getString("videoId"));
             notifyBuilder.setLargeIcon(Bitmap.createBitmap(origin, origin.getWidth() / 10, 0, origin.getHeight(), origin.getHeight()));
         }
         for (NotificationCompat.Action action : actions) {

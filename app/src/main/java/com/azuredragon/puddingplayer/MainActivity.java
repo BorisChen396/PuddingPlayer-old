@@ -148,14 +148,14 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                         if(link.contains("?")) {
-                            param = VideoDecipher.paramToJsonObject(link.split("\\?")[1]);
+                            param = VideoInfo.paramToJsonObject(link.split("\\?")[1]);
                         }
                         else {
                             param = new JSONObject().put("v", link);
                         }
 
                         Bundle bundle = new Bundle();
-                        bundle.putCharSequence("videoId", param.getString("v"));
+                        bundle.putString("videoId", param.getString("v"));
                         bundle.putBoolean("isDeciphered", false);
                         MediaControllerCompat.getMediaController(MainActivity.this).addQueueItem(
                                 new MediaDescriptionCompat.Builder()
