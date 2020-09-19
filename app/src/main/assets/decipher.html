@@ -2,35 +2,35 @@
     <head>
         <script>
             function decipher(s) {
-                Android.decipherCompleted(cv(s));
+                Android.decipherCompleted(gv(s));
             }
 
-            cv = function(a) {
+            gv = function(a) {
                 a = a.split("");
-                bv.J0(a, 32);
-                bv.dH(a, 58);
-                bv.u9(a, 1);
-                bv.dH(a, 48);
-                bv.u9(a, 3);
-                bv.dH(a, 34);
-                bv.J0(a, 28);
-                bv.u9(a, 1);
+                fv.zb(a, 3);
+                fv.lc(a, 21);
+                fv.Hr(a, 75);
+                fv.zb(a, 1);
+                fv.lc(a, 27);
+                fv.lc(a, 54);
+                fv.Hr(a, 73);
+                fv.zb(a, 3);
                 return a.join("")
             };
 
-        var bv = {
-            u9: function(a, b) {
-                a.splice(0, b)
-            },
-            dH: function(a) {
-                a.reverse()
-            },
-            J0: function(a, b) {
-                var c = a[0];
-                a[0] = a[b % a.length];
-                a[b % a.length] = c
-            }
-        };
+            var fv = {
+                zb: function(a, b) {
+                    a.splice(0, b)
+                },
+                lc: function(a, b) {
+                    var c = a[0];
+                    a[0] = a[b % a.length];
+                    a[b % a.length] = c
+                },
+                Hr: function(a) {
+                    a.reverse()
+                }
+            };
 
 
         </script>
