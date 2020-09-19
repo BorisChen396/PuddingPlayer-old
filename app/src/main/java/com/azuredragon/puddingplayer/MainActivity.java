@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.content.ComponentName;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.RemoteException;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
@@ -17,10 +18,13 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -128,8 +132,18 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    void addItem(String videoId) {
+        Bundle bundle = new Bundle();
+        bundle.putString("videoId", videoId);
+        bundle.putBoolean("isDeciphered", false);
+        MediaControllerCompat.getMediaController(MainActivity.this).addQueueItem(
+                new MediaDescriptionCompat.Builder()
+                        .setExtras(bundle)
+                        .build());
+    }
+
     void buildTransportTools() {
-        Button addButton = findViewById(R.id.button);
+        final Button addButton = findViewById(R.id.button);
         final TextView videoLink = findViewById(R.id.editText);
         addButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -150,14 +164,47 @@ public class MainActivity extends AppCompatActivity {
                             param = new JSONObject().put("v", link);
                         }
 
-                        Bundle bundle = new Bundle();
-                        bundle.putString("videoId", param.getString("v"));
-                        bundle.putBoolean("isDeciphered", false);
-                        MediaControllerCompat.getMediaController(MainActivity.this).addQueueItem(
-                                new MediaDescriptionCompat.Builder()
-                                        .setExtras(bundle)
-                                        .build());
-                    } catch (JSONException e) {
+                        if(param.has("list")) {
+                            String listId = param.getString("list");
+                            FileHandler file = new FileHandler(MainActivity.this);
+                            String playlistLink =
+                                    "https://www.youtube.com/list_ajax?style=json&action_get_list=1&list=" + listId;
+                            file.setOnLoadFailedListener(new FileHandler.OnLoadFailedListener() {
+                                @Override
+                                public void onLoadFailed(final String reason) {
+                                    Log.e("PlaylistError", reason);
+                                    Handler handler = new Handler(Looper.getMainLooper());
+                                    handler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            Toast.makeText(MainActivity.this, reason, Toast.LENGTH_LONG).show();
+                                        }
+                                    });
+                                }
+                            });
+                            file.setOnDownloadCompletedListener(new FileHandler.OnDownloadCompletedListener() {
+                                @Override
+                                public void onCompleted(String fileContent) {
+                                    try {
+                                        JSONArray playlistVideos = new JSONObject(fileContent).getJSONArray("video");
+                                        for(int i = 0; i < playlistVideos.length(); i++) {
+                                            Log.i("Playlist",
+                                                    playlistVideos.getJSONObject(i).getString("encrypted_id"));
+                                            addItem(playlistVideos.getJSONObject(i).getString("encrypted_id"));
+                                        }
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
+                            file.downloadFile(playlistLink, listId);
+                            return;
+                        }
+                        else {
+                            addItem(param.getString("v"));
+                        }
+
+                    } catch (JSONException | IOException e) {
                         e.printStackTrace();
                     }
                 }

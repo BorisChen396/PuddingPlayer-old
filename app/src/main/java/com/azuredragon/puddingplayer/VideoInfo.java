@@ -2,7 +2,6 @@ package com.azuredragon.puddingplayer;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.media.session.MediaSession;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -11,7 +10,6 @@ import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
-import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -21,8 +19,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 
 public class VideoInfo {
     private Context mContext;
@@ -89,19 +85,32 @@ public class VideoInfo {
                             final JSONObject videoDetails = playerResponse.getJSONObject("videoDetails");
                             mOnDecipheredListener = new OnDecipheredListener() {
                                 @Override
-                                public void onDeciphered(String audioLink) {
-                                    Log.i(TAG, audioLink);
+                                public void onDeciphered(final String audioLink) {
                                     try {
-                                        Bundle bundle = mQueueItem.getDescription().getExtras();
+                                        final Bundle bundle = mQueueItem.getDescription().getExtras();
                                         bundle.putBoolean("isDeciphered", true);
                                         bundle.putInt("lengthSeconds", Integer.parseInt(
                                                 videoDetails.getString("lengthSeconds")));
-                                        MediaDescriptionCompat.Builder desBuilder =
-                                                getMediaDescription(Uri.parse(audioLink), videoDetails);
-                                        desBuilder.setExtras(bundle);
-                                        if(mOnInfoPreparedListener != null)
-                                            mOnInfoPreparedListener.onPrepared(desBuilder.build());
-                                    } catch (JSONException | UnsupportedEncodingException e) {
+
+                                        Log.i(TAG, "Preparing video description...");
+                                        String infoLink = "https://www.youtube.com/oembed?url=youtu.be/" + mVideoId;
+                                        mFileHandler.setOnDownloadCompletedListener(new FileHandler.OnDownloadCompletedListener() {
+                                            @Override
+                                            public void onCompleted(String fileContent) {
+                                                try {
+                                                    MediaDescriptionCompat.Builder desBuilder =
+                                                            getMediaDescription(Uri.parse(audioLink),
+                                                                    new JSONObject(fileContent));
+                                                    desBuilder.setExtras(bundle);
+                                                    if(mOnInfoPreparedListener != null)
+                                                        mOnInfoPreparedListener.onPrepared(desBuilder.build());
+                                                } catch (JSONException | IOException e) {
+                                                    e.printStackTrace();
+                                                }
+                                            }
+                                        });
+                                        mFileHandler.downloadFile(infoLink, "info_" + mVideoId);
+                                    } catch (IOException | JSONException e) {
                                         e.printStackTrace();
                                     }
                                 }
@@ -157,15 +166,12 @@ public class VideoInfo {
         }
     }
 
-    private MediaDescriptionCompat.Builder getMediaDescription(Uri audioUri, JSONObject videoDetails) throws JSONException,
-            UnsupportedEncodingException {
-        Log.i(TAG, videoDetails.getString("title"));
+    private MediaDescriptionCompat.Builder getMediaDescription(Uri audioUri, JSONObject videoInfo)
+            throws IOException, JSONException {
         MediaDescriptionCompat.Builder builder = new MediaDescriptionCompat.Builder()
-                .setTitle(URLDecoder.decode(videoDetails.getString("title"), "UTF-8"))
-                .setSubtitle(URLDecoder.decode(videoDetails.getString("author"), "UTF-8"))
-                .setIconUri(Uri.parse(videoDetails.getJSONObject("thumbnail").getJSONArray("thumbnails")
-                        .getJSONObject(videoDetails.getJSONObject("thumbnail")
-                                .getJSONArray("thumbnails").length() - 2).getString("url")))
+                .setTitle(videoInfo.getString("title"))
+                .setSubtitle(videoInfo.getString("author_name"))
+                .setIconUri(Uri.parse(videoInfo.getString("thumbnail_url")))
                 .setMediaUri(audioUri)
                 .setExtras(new Bundle());
         return builder;

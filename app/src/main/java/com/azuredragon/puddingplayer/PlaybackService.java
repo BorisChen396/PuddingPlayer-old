@@ -49,6 +49,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         super.onCreate();
         isRunning = true;
         session = new MediaSessionCompat(this, TAG);
+        session.setActive(false);
         session.setFlags(
                 MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
                 MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
