@@ -16,4 +16,8 @@
     <string name="dialog_msg_add_playlist">This link contains a playlist.  Do you want to add all items in the playlist?</string>
     <string name="dialog_btn_addAll">Add All</string>
     <string name="dialog_btn_addVideo">Only The Video</string>
+    <string name="dialog_title_wrong_link">Unrecognizable Link</string>
+    <string name="dialog_msg_wrong_link">This link is unrecognizable.  Do you want to add it to the queue anyway?</string>
+    <string name="dialog_btn_addAnyway">Add It Anyway</string>
+    <string name="dialog_btn_cancel">Cancel</string>
 </resources>

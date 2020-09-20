@@ -2,9 +2,12 @@ package com.azuredragon.puddingplayer;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.DialogCompat;
 
+import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -38,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
     MediaControllerCompat mController;
     Handler mHandler;
     Runnable seekBarControl;
+    Intent intent;
+    listener mListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
                 new ComponentName(this, PlaybackService.class),
                 connectionCallback,
                 null);
+        intent = getIntent();
     }
 
     @Override
@@ -89,7 +95,12 @@ public class MainActivity extends AppCompatActivity {
                 mState = mController.getPlaybackState();
                 buildTransportTools();
                 refreshPlaylist(MediaControllerCompat.getMediaController(MainActivity.this).getQueue());
-            } catch (RemoteException e) {
+                if(intent.getAction().equals(Intent.ACTION_SEND) && intent.getType() != null) {
+                    if(intent.getType().equals("text/plain")) {
+                        receiveShareData(intent.getStringExtra(Intent.EXTRA_TEXT));
+                    }
+                }
+            } catch (RemoteException | JSONException e) {
                 e.printStackTrace();
             }
         }
@@ -149,6 +160,98 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    AlertDialog createDialog(int titleStringId, int msgStringId,
+                             int positiveButtonText, int negativeButtonText,
+                             DialogInterface.OnClickListener positiveButton,
+                             DialogInterface.OnClickListener negativeButton) {
+        return new AlertDialog.Builder(MainActivity.this)
+                .setTitle(titleStringId)
+                .setMessage(msgStringId)
+                .setPositiveButton(positiveButtonText, positiveButton)
+                .setNegativeButton(negativeButtonText, negativeButton)
+                .create();
+    }
+
+    void receiveShareData(String link) throws JSONException {
+        mListener = new listener() {
+            @Override
+            public void onCompleted(String data) {
+                try {
+                    final JSONObject param = new JSONObject(data);
+                    if(param.has("list")) {
+                        DialogInterface.OnClickListener addAll = new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                try {
+                                    addPlaylist(param.getString("list"));
+                                } catch (IOException | JSONException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        };
+                        final DialogInterface.OnClickListener onlyVideo = new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                try {
+                                    addItem(param.getString("v"));
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        };
+                        if(param.has("v")) {
+                            createDialog(
+                                    R.string.dialog_title_add_playlist, R.string.dialog_msg_add_playlist,
+                                    R.string.dialog_btn_addAll, R.string.dialog_btn_addVideo, addAll, onlyVideo).show();
+                        }
+                        else {
+                            addAll.onClick(null, 0);
+                        }
+                    }
+                    else {
+                        addItem(param.getString("v"));
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        youtubeLinkToParam(link);
+    }
+
+    void youtubeLinkToParam(String link) throws JSONException {
+        JSONObject param = new JSONObject();
+        if (link.contains("youtu.be")) {
+            link = link.replace("youtu.be/", "www.youtube.com/watch?v=");
+        }
+
+        if (link.contains("?")) {
+            mListener.onCompleted(VideoInfo.paramToJsonObject(link.split("\\?")[1]).toString());
+
+        } else {
+            final JSONObject finalParam = param;
+            final String finalLink = link;
+            DialogInterface.OnClickListener addAnyway = new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    try {
+                        mListener.onCompleted(finalParam.put("v", finalLink).toString());
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
+            DialogInterface.OnClickListener cancel = new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            };
+            createDialog(R.string.dialog_title_wrong_link, R.string.dialog_msg_wrong_link,
+                    R.string.dialog_btn_addAnyway, R.string.dialog_btn_cancel, addAnyway, cancel).show();
+        }
+    }
+
     void addPlaylist(String listId) throws IOException {
         FileHandler file = new FileHandler(MainActivity.this);
         String playlistLink =
@@ -202,64 +305,52 @@ public class MainActivity extends AppCompatActivity {
                 String[] queueItems = videoLink.getText().toString().split(";");
                 for (String queueItem : queueItems) {
                     try {
-                        String link = queueItem;
-                        final JSONObject param;
-                        if (link.contains("youtu.be")) {
-                            link = link.replace("youtu.be/", "www.youtube.com/watch?v=");
-                        }
-
-                        if (link.contains("?")) {
-                            param = VideoInfo.paramToJsonObject(link.split("\\?")[1]);
-                        } else {
-                            param = new JSONObject().put("v", link);
-                        }
-
-                        if(param.has("list")) {
-                            DialogInterface.OnClickListener addAll = new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    try {
-                                        addPlaylist(param.getString("list"));
-                                    } catch (IOException | JSONException e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                            };
-                            final DialogInterface.OnClickListener onlyVideo = new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    try {
-                                        addItem(param.getString("v"));
-                                    } catch (JSONException e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                            };
-                            if(param.has("v")) {
-                                new AlertDialog.Builder(MainActivity.this)
-                                        .setTitle(getResources().getString(R.string.dialog_title_add_playlist))
-                                        .setMessage(getResources().getString(R.string.dialog_msg_add_playlist))
-                                        .setPositiveButton(
-                                                getResources().getString(R.string.dialog_btn_addAll), addAll)
-                                        .setNegativeButton(
-                                                getResources().getString(R.string.dialog_btn_addVideo), onlyVideo)
-                                        .setCancelable(true)
-                                        .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                        mListener = new listener() {
+                            @Override
+                            public void onCompleted(String data) {
+                                try {
+                                    final JSONObject param = new JSONObject(data);
+                                    if(param.has("list")) {
+                                        DialogInterface.OnClickListener addAll = new DialogInterface.OnClickListener() {
                                             @Override
-                                            public void onCancel(DialogInterface dialog) {
-                                                onlyVideo.onClick(dialog, 0);
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                try {
+                                                    addPlaylist(param.getString("list"));
+                                                } catch (IOException | JSONException e) {
+                                                    e.printStackTrace();
+                                                }
                                             }
-                                        }).create().show();
+                                        };
+                                        final DialogInterface.OnClickListener onlyVideo =
+                                                new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                try {
+                                                    addItem(param.getString("v"));
+                                                } catch (JSONException e) {
+                                                    e.printStackTrace();
+                                                }
+                                            }
+                                        };
+                                        if(param.has("v")) {
+                                            createDialog(
+                                                    R.string.dialog_title_add_playlist, R.string.dialog_msg_add_playlist,
+                                                    R.string.dialog_btn_addAll, R.string.dialog_btn_addVideo,
+                                                    addAll, onlyVideo).show();
+                                        }
+                                        else {
+                                            addAll.onClick(null, 0);
+                                        }
+                                    }
+                                    else {
+                                        addItem(param.getString("v"));
+                                    }
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
                             }
-                            else {
-                                addAll.onClick(null, 0);
-                            }
-                            return;
-                        }
-                        else {
-                            addItem(param.getString("v"));
-                        }
-
+                        };
+                        youtubeLinkToParam(queueItem);
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -407,5 +498,9 @@ public class MainActivity extends AppCompatActivity {
                 this,
                 android.R.layout.simple_list_item_1,
                 str));
+    }
+
+    interface listener {
+        void onCompleted(String data);
     }
 }
