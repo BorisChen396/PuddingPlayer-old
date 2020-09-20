@@ -13,43 +13,47 @@ public class MediaIntentReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        if(intent.getAction().equals(Intent.ACTION_MEDIA_BUTTON)) {
-            KeyEvent keyEvent = (KeyEvent) intent.getExtras().get(Intent.EXTRA_KEY_EVENT);
-            switch (keyEvent.getKeyCode()) {
-                case KeyEvent.KEYCODE_HEADSETHOOK:
+        if(intent != null) {
+            String action = intent.getAction();
+            if(intent.getAction().equals(Intent.ACTION_MEDIA_BUTTON)) {
+                KeyEvent keyEvent = (KeyEvent) intent.getExtras().get(Intent.EXTRA_KEY_EVENT);
+                Log.i("KeyEvent", String.valueOf(keyEvent.getKeyCode()));
+                switch (keyEvent.getKeyCode()) {
+                    case KeyEvent.KEYCODE_HEADSETHOOK:
 
-                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                    switch (session.getController().getPlaybackState().getState()) {
-                        case PlaybackStateCompat.STATE_PLAYING:
-                            session.getController().getTransportControls().pause();
-                            break;
+                    case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                        switch (session.getController().getPlaybackState().getState()) {
+                            case PlaybackStateCompat.STATE_PLAYING:
+                                session.getController().getTransportControls().pause();
+                                break;
 
-                        case PlaybackStateCompat.STATE_PAUSED:
-                            session.getController().getTransportControls().play();
-                            break;
-                    }
-                    break;
+                            case PlaybackStateCompat.STATE_PAUSED:
+                                session.getController().getTransportControls().play();
+                                break;
+                        }
+                        break;
 
-                case KeyEvent.KEYCODE_MEDIA_PLAY:
-                    session.getController().getTransportControls().play();
-                    break;
+                    case KeyEvent.KEYCODE_MEDIA_PLAY:
+                        session.getController().getTransportControls().play();
+                        break;
 
-                case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                    Log.i("MediaButton", "Paused.");
-                    session.getController().getTransportControls().pause();
-                    break;
+                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                        Log.i("MediaButton", "Paused.");
+                        session.getController().getTransportControls().pause();
+                        break;
 
-                case KeyEvent.KEYCODE_MEDIA_STOP:
-                    session.getController().getTransportControls().stop();
-                    break;
+                    case KeyEvent.KEYCODE_MEDIA_STOP:
+                        session.getController().getTransportControls().stop();
+                        break;
 
-                case KeyEvent.KEYCODE_MEDIA_NEXT:
-                    session.getController().getTransportControls().skipToNext();
-                    break;
+                    case KeyEvent.KEYCODE_MEDIA_NEXT:
+                        session.getController().getTransportControls().skipToNext();
+                        break;
 
-                case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-                    session.getController().getTransportControls().skipToPrevious();
-                    break;
+                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                        session.getController().getTransportControls().skipToPrevious();
+                        break;
+                }
             }
         }
     }

@@ -38,6 +38,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     String TAG = "PlaybackService";
     boolean isRunning = false;
 
+    MediaIntentReceiver mReceiver;
     MediaSessionCompat session;
     AudioManager audioManager;
     static int currentItem;
@@ -71,7 +72,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         audioManager.setMode(AudioManager.MODE_NORMAL);
         MediaIntentReceiver.initReceiver(session);
-        audioManager.registerMediaButtonEventReceiver(new ComponentName(this, PlaybackService.class));
+        audioManager.registerMediaButtonEventReceiver(new ComponentName(this, MediaIntentReceiver.class));
         mManager = new MediaNotificationManager(this);
     }
 

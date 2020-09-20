@@ -478,6 +478,7 @@ public class MainActivity extends AppCompatActivity {
         if(mController.getMetadata() != null) {
             int lengthSec = (int) (mController.getMetadata().getLong(MediaMetadataCompat.METADATA_KEY_DURATION) / 1000);
             posSeekBar.setMax(lengthSec);
+            posSeekBar.setSecondaryProgress((int) (mController.getPlaybackState().getBufferedPosition() / 1000));
 
             String min = String.format(Locale.getDefault(), "%02d", lengthSec / 60);
             String sec = String.format(Locale.getDefault(), "%02d", lengthSec % 60);

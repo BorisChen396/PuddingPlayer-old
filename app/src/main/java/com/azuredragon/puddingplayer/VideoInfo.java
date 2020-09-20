@@ -13,6 +13,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -148,10 +149,21 @@ public class VideoInfo {
             webSettings.setJavaScriptEnabled(true);
             webSettings.setDomStorageEnabled(true);
             wv.loadUrl("file:///android_asset/decipher.html");
+
+            final Handler timeOutHandler = new Handler();
+            final Runnable onTimeOut = new Runnable() {
+                @Override
+                public void run() {
+                    Log.e(TAG, "Webview timeout!  Retrying...");
+                    wv.loadUrl("file:///android_asset/decipher.html");
+                }
+            };
+            timeOutHandler.postDelayed(onTimeOut, 7500);
             wv.setWebViewClient(new WebViewClient() {
                 @Override
                 public void onPageFinished(WebView view, String url) {
                     super.onPageFinished(view, url);
+                    timeOutHandler.removeCallbacks(onTimeOut);
                     try {
                         webInterface.decipher(view, Uri.decode(signatureCipher.getString("url")),
                                 Uri.decode(signatureCipher.getString("s")));
