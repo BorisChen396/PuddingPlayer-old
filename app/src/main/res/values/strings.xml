@@ -9,4 +9,11 @@
     <string name="button_prev">Previous</string>
     <string name="button_submit">Submit</string>
     <string name="edittext_hint_link">Paste a YouTube video link here...</string>
+    <string name="button_repeat_none">None</string>
+    <string name="button_repeat_one">Single</string>
+    <string name="button_repeat_all">All</string>
+    <string name="dialog_title_add_playlist">Playlist Detected</string>
+    <string name="dialog_msg_add_playlist">This link contains a playlist.  Do you want to add all items in the playlist?</string>
+    <string name="dialog_btn_addAll">Add All</string>
+    <string name="dialog_btn_addVideo">Only The Video</string>
 </resources>

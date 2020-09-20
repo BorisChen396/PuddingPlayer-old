@@ -24,7 +24,7 @@
                 android:ems="10"
                 android:hint="@string/edittext_hint_link"
                 android:inputType="textPersonName"
-                android:text="https://www.youtube.com/playlist?list=PLlTwHyUsXERuP2VNFJxquqgLgq1TpULYE" />
+                android:text="https://www.youtube.com/watch?v=871c6I7cHZM&amp;list=PL_h4IoimLDtSxXDZzs15J7QDG0OWBZztv" />
 
             <Button
                 android:id="@+id/button"
@@ -62,10 +62,37 @@
                 android:text="@string/button_next" />
         </LinearLayout>
 
-        <SeekBar
-            android:id="@+id/seekBar"
+        <Button
+            android:id="@+id/repeatModeButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:text="@string/button_repeat_one" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/currentPosition"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="00:00" />
+
+            <SeekBar
+                android:id="@+id/posSeekBar"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="8" />
+
+            <TextView
+                android:id="@+id/duration"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="00:00" />
+        </LinearLayout>
 
         <ListView
             android:id="@+id/playlistView"

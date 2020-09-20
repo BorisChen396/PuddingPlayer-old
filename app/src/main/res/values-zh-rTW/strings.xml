@@ -10,4 +10,11 @@
     <string name="button_prev">上一首</string>
     <string name="button_submit">新增歌曲</string>
     <string name="edittext_hint_link">在此輸入YouTube影片連結......</string>
+    <string name="button_repeat_none">循環關閉</string>
+    <string name="button_repeat_one">單曲循環</string>
+    <string name="button_repeat_all">全部循環</string>
+    <string name="dialog_title_add_playlist">偵測到播放清單</string>
+    <string name="dialog_msg_add_playlist">此連結包含播放清單，請問是否加入清單內的所有項目？</string>
+    <string name="dialog_btn_addAll">全部加入</string>
+    <string name="dialog_btn_addVideo">僅加入影片</string>
 </resources>

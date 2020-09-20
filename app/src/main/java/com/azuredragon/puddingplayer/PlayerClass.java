@@ -7,7 +7,6 @@ import android.os.PowerManager;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
-import android.util.Log;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -17,6 +16,7 @@ public class PlayerClass {
     private static MediaPlayer player;
     private static MediaSessionCompat session;
     private static MediaControllerCompat controller;
+    private static int bufferedPosition;
 
     static boolean isCompleted;
 
@@ -48,27 +48,29 @@ public class PlayerClass {
         player.prepareAsync();
     }
 
-    static void setLoop(boolean loop) {
-        player.setLooping(loop);
-    }
-
     static void resumePlayer() {
+        isCompleted = false;
         player.start();
-        session.setPlaybackState(new PlaybackStateCompat.Builder()
+        session.setPlaybackState(new PlaybackStateCompat.Builder(session.getController().getPlaybackState())
                 .setState(PlaybackStateCompat.STATE_PLAYING, player.getCurrentPosition(), 1.0f)
                 .build());
     }
 
     static void pausePlayer() {
         player.pause();
-        session.setPlaybackState(new PlaybackStateCompat.Builder()
+        session.setPlaybackState(new PlaybackStateCompat.Builder(session.getController().getPlaybackState())
                 .setState(PlaybackStateCompat.STATE_PAUSED, player.getCurrentPosition(), 1.0f)
                 .build());
-        Log.i("MediaPlayer", "Paused.");
     }
 
     static void seekTo(long pos) {
+        if(isNull()) return;
         player.seekTo((int) pos);
+        session.setPlaybackState(new PlaybackStateCompat.Builder(session.getController().getPlaybackState())
+                .setState(session.getController().getPlaybackState().getState(),
+                        player.getCurrentPosition(), 1.0f)
+                .build()
+        );
     }
 
     static void stopPlayer() {
@@ -89,9 +91,9 @@ public class PlayerClass {
     private static MediaPlayer.OnBufferingUpdateListener playerBuffering = new MediaPlayer.OnBufferingUpdateListener() {
         @Override
         public void onBufferingUpdate(MediaPlayer mp, int percent) {
-            session.setPlaybackState(new PlaybackStateCompat.Builder()
-                    .setState(PlaybackStateCompat.STATE_PLAYING, player.getCurrentPosition(), 1.0f)
-                    .setBufferedPosition(percent * player.getDuration() / 100)
+            bufferedPosition = percent * player.getDuration() / 100;
+            session.setPlaybackState(new PlaybackStateCompat.Builder(session.getController().getPlaybackState())
+                    .setBufferedPosition(bufferedPosition)
                     .build());
         }
     };

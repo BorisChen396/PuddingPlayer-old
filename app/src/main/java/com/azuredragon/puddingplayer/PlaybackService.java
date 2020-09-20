@@ -224,6 +224,12 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             super.onSkipToNext();
             List<MediaSessionCompat.QueueItem> queue = session.getController().getQueue();
             currentItem++;
+            if(session.getController().getRepeatMode() == PlaybackStateCompat.REPEAT_MODE_ONE && PlayerClass.isCompleted) {
+                currentItem--;
+                PlayerClass.seekTo(0);
+                PlayerClass.resumePlayer();
+                return;
+            }
             if(currentItem < queue.size()) {
                 session.getController().getTransportControls().skipToQueueItem(currentItem);
             }
@@ -298,6 +304,28 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         public void onSeekTo(long pos) {
             super.onSeekTo(pos);
             PlayerClass.seekTo(pos);
+        }
+
+        @Override
+        public void onSetRepeatMode(int repeatMode) {
+            super.onSetRepeatMode(repeatMode);
+            switch (repeatMode) {
+                case PlaybackStateCompat.REPEAT_MODE_ALL:
+                    session.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_ALL);
+                    break;
+                case PlaybackStateCompat.REPEAT_MODE_GROUP:
+                    session.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_GROUP);
+                    break;
+                case PlaybackStateCompat.REPEAT_MODE_INVALID:
+                    session.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_INVALID);
+                    break;
+                case PlaybackStateCompat.REPEAT_MODE_NONE:
+                    session.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_NONE);
+                    break;
+                case PlaybackStateCompat.REPEAT_MODE_ONE:
+                    session.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_ONE);
+                    break;
+            }
         }
 
         @Override
