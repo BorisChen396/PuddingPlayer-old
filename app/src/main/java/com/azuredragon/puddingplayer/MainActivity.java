@@ -45,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     Intent intent;
     Uri appLinkData;
     listener mListener;
+    boolean isIntentSharing = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
             MediaControllerCompat.getMediaController(MainActivity.this).unregisterCallback(controllerCallback);
         }
         browser.disconnect();
+        if(isIntentSharing) this.finish();
     }
 
     @Override
@@ -101,9 +103,11 @@ public class MainActivity extends AppCompatActivity {
                 if(appLinkData != null) {
                     receiveShareData(appLinkData.toString());
                 }
-                if(intent.getAction().equals(Intent.ACTION_SEND) && intent.getType() != null) {
-                    if(intent.getType().equals("text/plain")) {
-                        receiveShareData(intent.getStringExtra(Intent.EXTRA_TEXT));
+                if(intent.getAction() != null && intent.getType() != null) {
+                    if(intent.getAction().equals(Intent.ACTION_SEND)) {
+                        if(intent.getType().equals("text/plain")) {
+                            receiveShareData(intent.getStringExtra(Intent.EXTRA_TEXT));
+                        }
                     }
                 }
             } catch (RemoteException | JSONException e) {
@@ -179,6 +183,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void receiveShareData(String link) throws JSONException {
+        isIntentSharing = true;
         mListener = new listener() {
             @Override
             public void onCompleted(String data) {

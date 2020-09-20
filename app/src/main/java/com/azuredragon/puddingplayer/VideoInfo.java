@@ -146,6 +146,7 @@ public class VideoInfo {
             wv.addJavascriptInterface(webInterface, "Android");
             WebSettings webSettings = wv.getSettings();
             webSettings.setJavaScriptEnabled(true);
+            webSettings.setDomStorageEnabled(true);
             wv.loadUrl("file:///android_asset/decipher.html");
             wv.setWebViewClient(new WebViewClient() {
                 @Override
