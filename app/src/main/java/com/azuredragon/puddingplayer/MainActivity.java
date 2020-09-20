@@ -8,6 +8,7 @@ import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -42,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
     Handler mHandler;
     Runnable seekBarControl;
     Intent intent;
+    Uri appLinkData;
     listener mListener;
 
     @Override
@@ -53,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
                 connectionCallback,
                 null);
         intent = getIntent();
+        appLinkData = intent.getData();
     }
 
     @Override
@@ -95,6 +98,9 @@ public class MainActivity extends AppCompatActivity {
                 mState = mController.getPlaybackState();
                 buildTransportTools();
                 refreshPlaylist(MediaControllerCompat.getMediaController(MainActivity.this).getQueue());
+                if(appLinkData != null) {
+                    receiveShareData(appLinkData.toString());
+                }
                 if(intent.getAction().equals(Intent.ACTION_SEND) && intent.getType() != null) {
                     if(intent.getType().equals("text/plain")) {
                         receiveShareData(intent.getStringExtra(Intent.EXTRA_TEXT));
