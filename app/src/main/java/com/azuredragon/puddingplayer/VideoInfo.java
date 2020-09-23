@@ -111,7 +111,7 @@ public class VideoInfo {
                                             }
                                         });
                                         mFileHandler.downloadFile(infoLink, "info_" + mVideoId);
-                                    } catch (IOException | JSONException e) {
+                                    } catch (JSONException e) {
                                         e.printStackTrace();
                                     }
                                 }

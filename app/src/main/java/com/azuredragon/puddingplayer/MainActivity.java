@@ -1,13 +1,17 @@
 package com.azuredragon.puddingplayer;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.DialogCompat;
 
 import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -45,7 +49,8 @@ public class MainActivity extends AppCompatActivity {
     Intent intent;
     Uri appLinkData;
     listener mListener;
-    boolean isIntentSharing = false;
+
+    boolean isReceivedData = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,8 +70,6 @@ public class MainActivity extends AppCompatActivity {
         browser.connect();
     }
 
-
-
     @Override
     protected void onStop() {
         super.onStop();
@@ -74,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
             MediaControllerCompat.getMediaController(MainActivity.this).unregisterCallback(controllerCallback);
         }
         browser.disconnect();
-        if(isIntentSharing) this.finish();
+        if(isReceivedData) this.finish();
     }
 
     @Override
@@ -102,11 +105,13 @@ public class MainActivity extends AppCompatActivity {
                 refreshPlaylist(MediaControllerCompat.getMediaController(MainActivity.this).getQueue());
                 if(appLinkData != null) {
                     receiveShareData(appLinkData.toString());
+                    appLinkData = null;
                 }
                 if(intent.getAction() != null && intent.getType() != null) {
                     if(intent.getAction().equals(Intent.ACTION_SEND)) {
                         if(intent.getType().equals("text/plain")) {
                             receiveShareData(intent.getStringExtra(Intent.EXTRA_TEXT));
+                            intent.setAction(null);
                         }
                     }
                 }
@@ -183,7 +188,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void receiveShareData(String link) throws JSONException {
-        isIntentSharing = true;
+        isReceivedData = true;
         mListener = new listener() {
             @Override
             public void onCompleted(String data) {
@@ -195,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
                             public void onClick(DialogInterface dialog, int which) {
                                 try {
                                     addPlaylist(param.getString("list"));
-                                } catch (IOException | JSONException e) {
+                                } catch (JSONException e) {
                                     e.printStackTrace();
                                 }
                             }
@@ -263,7 +268,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    void addPlaylist(String listId) throws IOException {
+    void addPlaylist(String listId) {
+        final ProgressDialog dialog = ProgressDialog.show(this,
+                getResources().getString(R.string.dialog_title_addPlaylist),
+                getResources().getString(R.string.dialog_msg_addPlaylist), true);
+        dialog.show();
         FileHandler file = new FileHandler(MainActivity.this);
         String playlistLink =
                 "https://www.youtube.com/list_ajax?style=json&action_get_list=1&list=" + listId;
@@ -275,6 +284,7 @@ public class MainActivity extends AppCompatActivity {
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
+                        dialog.dismiss();
                         Toast.makeText(MainActivity.this, reason, Toast.LENGTH_LONG).show();
                     }
                 });
@@ -288,6 +298,7 @@ public class MainActivity extends AppCompatActivity {
                     for(int i = 0; i < playlistVideos.length(); i++) {
                         addItem(playlistVideos.getJSONObject(i).getString("encrypted_id"));
                     }
+                    dialog.dismiss();
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -327,22 +338,22 @@ public class MainActivity extends AppCompatActivity {
                                             public void onClick(DialogInterface dialog, int which) {
                                                 try {
                                                     addPlaylist(param.getString("list"));
-                                                } catch (IOException | JSONException e) {
+                                                } catch (JSONException e) {
                                                     e.printStackTrace();
                                                 }
                                             }
                                         };
                                         final DialogInterface.OnClickListener onlyVideo =
                                                 new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int which) {
-                                                try {
-                                                    addItem(param.getString("v"));
-                                                } catch (JSONException e) {
-                                                    e.printStackTrace();
-                                                }
-                                            }
-                                        };
+                                                    @Override
+                                                    public void onClick(DialogInterface dialog, int which) {
+                                                        try {
+                                                            addItem(param.getString("v"));
+                                                        } catch (JSONException e) {
+                                                            e.printStackTrace();
+                                                        }
+                                                    }
+                                                };
                                         if(param.has("v")) {
                                             createDialog(
                                                     R.string.dialog_title_add_playlist, R.string.dialog_msg_add_playlist,

@@ -22,23 +22,25 @@ public class FileHandler {
     private OnLoadFailedListener mOnError;
 
     static String APPLICATION_DATA_DIR;
+    static String APPLICATION_CACHE_DIR;
 
-    public FileHandler(Context context) {
+    FileHandler(Context context) {
         mContext = context;
         APPLICATION_DATA_DIR = context.getApplicationInfo().dataDir + "/";
+        APPLICATION_CACHE_DIR = context.getCacheDir().toString() + "/";
     }
 
-    public boolean isNetworkConnected() {
+    boolean isNetworkConnected() {
         mConnectionManager = (ConnectivityManager) mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
         return mConnectionManager.getActiveNetworkInfo() != null && mConnectionManager.getActiveNetworkInfo().isConnected();
     }
 
-    public int checkURLConnection(String url) throws IOException {
+    int checkURLConnection(String url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         return connection.getResponseCode();
     }
 
-    public boolean checkFileExistance(String path) {
+    boolean checkFileExistance(String path) {
         File file = new File(path);
         return file.exists();
     }
@@ -47,15 +49,15 @@ public class FileHandler {
         mOnFileLoaded = onFileLoadedListener;
     }
 
-    public void setOnDownloadCompletedListener(OnDownloadCompletedListener onDownloadCompletedListener) {
+    void setOnDownloadCompletedListener(OnDownloadCompletedListener onDownloadCompletedListener) {
         mOnDownloaded = onDownloadCompletedListener;
     }
 
-    public void setOnLoadFailedListener(OnLoadFailedListener onLoadFailedListener) {
+    void setOnLoadFailedListener(OnLoadFailedListener onLoadFailedListener) {
         mOnError = onLoadFailedListener;
     }
 
-    public void downloadFile(final String url, final String fileName) throws IOException {
+    void downloadFile(final String url, final String fileName) {
         final Runnable download = new Runnable() {
             @Override
             public void run() {
@@ -108,7 +110,7 @@ public class FileHandler {
         new Thread(download).start();
     }
 
-    public void loadFile(String fileName) throws IOException {
+    void loadFile(String fileName) throws IOException {
         File file = new File(APPLICATION_DATA_DIR + fileName);
         if(!file.exists() || !file.canRead()) {
             if(mOnError != null) mOnError.onLoadFailed("Unable to load the specific file.");

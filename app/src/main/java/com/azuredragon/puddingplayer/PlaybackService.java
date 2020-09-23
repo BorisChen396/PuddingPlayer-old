@@ -1,25 +1,26 @@
 package com.azuredragon.puddingplayer;
 
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
-import android.graphics.PixelFormat;
+import android.content.IntentFilter;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.nfc.Tag;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.WindowManager;
-import android.webkit.JavascriptInterface;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
+import android.view.KeyEvent;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -38,7 +39,8 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     String TAG = "PlaybackService";
     boolean isRunning = false;
 
-    MediaIntentReceiver mReceiver;
+    BecomingNoisyReceiver mReceiver;
+
     MediaSessionCompat session;
     AudioManager audioManager;
     static int currentItem;
@@ -50,7 +52,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         super.onCreate();
         isRunning = true;
         session = new MediaSessionCompat(this, TAG);
-        session.setActive(false);
         session.setFlags(
                 MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
                 MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
@@ -59,21 +60,22 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 .setActions(
                         PlaybackStateCompat.ACTION_PLAY |
                         PlaybackStateCompat.ACTION_PLAY_PAUSE
-                )
-                .build());
+                ).build());
         session.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
                 MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS |
                 MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS);
         session.setCallback(sessionCallback);
         session.setQueue(new ArrayList<MediaSessionCompat.QueueItem>());
+        session.setMediaButtonReceiver(null);
         session.setActive(true);
         setSessionToken(session.getSessionToken());
 
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         audioManager.setMode(AudioManager.MODE_NORMAL);
-        MediaIntentReceiver.initReceiver(session);
-        audioManager.registerMediaButtonEventReceiver(new ComponentName(this, MediaIntentReceiver.class));
+
         mManager = new MediaNotificationManager(this);
+
+        mReceiver = new BecomingNoisyReceiver();
     }
 
     @Override
@@ -105,6 +107,8 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     }
 
     MediaSessionCompat.Callback sessionCallback = new MediaSessionCompat.Callback() {
+        long mediaButtonLastCalled;
+
         @Override
         public void onAddQueueItem(MediaDescriptionCompat description) {
             super.onAddQueueItem(description);
@@ -118,7 +122,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         @Override
         public void onSkipToQueueItem(final long id) {
             super.onSkipToQueueItem(id);
-            Log.i(TAG, session.getController().getQueue().toString());
             startService(new Intent(PlaybackService.this, PlaybackService.class));
             startForeground(MediaNotificationManager.NOTIFICATION_ID,
                     mManager.getNotification(
@@ -129,13 +132,19 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                             new NotificationCompat.Action[0]
                     ));
             if(!PlayerClass.isNull()) PlayerClass.stopPlayer();
+            Log.i(TAG, "Skipping to " + id);
             currentItem = (int)id;
+            session.setPlaybackState(
+                    new PlaybackStateCompat.Builder(session.getController().getPlaybackState())
+                            .setState(PlaybackStateCompat.STATE_CONNECTING, 0, 1.0f)
+                            .build());
             MediaSessionCompat.QueueItem queueItem = session.getController().getQueue().get((int)id);
             if(!queueItem.getDescription().getExtras().getBoolean("isDeciphered")) {
                 VideoInfo videoInfo = new VideoInfo(PlaybackService.this, queueItem);
                 videoInfo.setOnInfoPreparedListener(new VideoInfo.OnInfoPreparedListener() {
                     @Override
                     public void onPrepared(MediaDescriptionCompat description) {
+                        Log.i(TAG, description.toString());
                         List<MediaSessionCompat.QueueItem> queueItemList = session.getController().getQueue();
                         queueItemList.set((int)id, new MediaSessionCompat.QueueItem(description, id));
                         session.setQueue(queueItemList);
@@ -172,30 +181,26 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                     .build();
             session.setMetadata(metadata);
             if(!albumExistance) {
-                try {
-                    startForeground(MediaNotificationManager.NOTIFICATION_ID,
-                            mManager.getNotification(
-                                    session.getSessionToken(),
-                                    new MediaDescriptionCompat.Builder()
-                                            .setTitle("Preparing...")
-                                            .setSubtitle("Loading the video thumbnail...").build(),
-                                    new NotificationCompat.Action[0]
-                            ));
-                    fileHandler.setOnDownloadCompletedListener(new FileHandler.OnDownloadCompletedListener() {
-                        @Override
-                        public void onCompleted(String fileContent) {
-                            try {
-                                PlayerClass.initPlayer(PlaybackService.this, session);
-                                PlayerClass.setPlayerSource(des.getMediaUri().toString());
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
+                startForeground(MediaNotificationManager.NOTIFICATION_ID,
+                        mManager.getNotification(
+                                session.getSessionToken(),
+                                new MediaDescriptionCompat.Builder()
+                                        .setTitle("Preparing...")
+                                        .setSubtitle("Loading the video thumbnail...").build(),
+                                new NotificationCompat.Action[0]
+                        ));
+                fileHandler.setOnDownloadCompletedListener(new FileHandler.OnDownloadCompletedListener() {
+                    @Override
+                    public void onCompleted(String fileContent) {
+                        try {
+                            PlayerClass.initPlayer(PlaybackService.this, session);
+                            PlayerClass.setPlayerSource(des.getMediaUri().toString());
+                        } catch (IOException e) {
+                            e.printStackTrace();
                         }
-                    });
-                    fileHandler.downloadFile(des.getIconUri().toString(), "album_" + videoId);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                    }
+                });
+                fileHandler.downloadFile(des.getIconUri().toString(), "album_" + videoId);
             }
             else {
                 try {
@@ -210,7 +215,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         @Override
         public void onSkipToPrevious() {
             super.onSkipToPrevious();
-            List<MediaSessionCompat.QueueItem> queue = session.getController().getQueue();
             currentItem--;
             if(currentItem >= 0) {
                 session.getController().getTransportControls().skipToQueueItem(currentItem);
@@ -253,6 +257,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         @Override
         public void onPlay() {
             super.onPlay();
+            if(session == null || session.getController().getQueue().size() == 0) return;
             if(!new FileHandler(PlaybackService.this).isNetworkConnected()) {
                 Toast.makeText(PlaybackService.this, "Network disconnected.", Toast.LENGTH_LONG).show();
                 session.getController().getTransportControls().stop();
@@ -282,6 +287,8 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                             MediaNotificationManager.mPauseIntent,
                             MediaNotificationManager.mNextIntent
                     }));
+
+            registerReceiver(mReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
             PlayerClass.resumePlayer();
         }
 
@@ -333,8 +340,46 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         public void onStop() {
             super.onStop();
             stopForeground(true);
+            unregisterReceiver(mReceiver);
             PlayerClass.stopPlayer();
             stopService(new Intent(PlaybackService.this, PlaybackService.class));
+        }
+
+        @Override
+        public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
+            if(mediaButtonEvent.getAction().equals(Intent.ACTION_MEDIA_BUTTON)) {
+                KeyEvent keyEvent = (KeyEvent) mediaButtonEvent.getExtras().get(Intent.EXTRA_KEY_EVENT);
+                MediaControllerCompat controller = session.getController();
+                if(keyEvent.getAction() != KeyEvent.ACTION_DOWN ||
+                        System.currentTimeMillis() - mediaButtonLastCalled < 10) return true;
+                mediaButtonLastCalled = System.currentTimeMillis();
+                switch (keyEvent.getKeyCode()) {
+                    case KeyEvent.KEYCODE_HEADSETHOOK:
+                        break;
+
+                    case KeyEvent.KEYCODE_MEDIA_PLAY:
+                        controller.getTransportControls().play();
+                        break;
+
+                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                        controller.getTransportControls().pause();
+                        break;
+
+                    case KeyEvent.KEYCODE_MEDIA_STOP:
+                        controller.getTransportControls().stop();
+                        break;
+
+                    case KeyEvent.KEYCODE_MEDIA_NEXT:
+                        Log.i(TAG, keyEvent.toString() +  ", CurrentTime=" + System.currentTimeMillis());
+                        controller.getTransportControls().skipToNext();
+                        break;
+
+                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                        controller.getTransportControls().skipToPrevious();
+                        break;
+                }
+            }
+            return super.onMediaButtonEvent(mediaButtonEvent);
         }
     };
 
@@ -351,4 +396,13 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             }
         }
     };
+
+    private class BecomingNoisyReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if(intent.getAction().equals(AudioManager.ACTION_AUDIO_BECOMING_NOISY)) {
+                session.getController().getTransportControls().pause();
+            }
+        }
+    }
 }

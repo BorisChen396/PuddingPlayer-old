@@ -23,7 +23,8 @@
                 android:layout_weight="3"
                 android:ems="10"
                 android:hint="@string/edittext_hint_link"
-                android:inputType="textPersonName" />
+                android:inputType="textPersonName"
+                android:text="https://www.youtube.com/watch?v=iCcIghc73eY" />
 
             <Button
                 android:id="@+id/button"
