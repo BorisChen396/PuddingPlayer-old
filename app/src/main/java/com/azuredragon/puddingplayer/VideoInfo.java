@@ -7,13 +7,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.support.v4.media.MediaDescriptionCompat;
+import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -27,7 +27,8 @@ public class VideoInfo {
     private MediaSessionCompat.QueueItem mQueueItem;
     private FileHandler mFileHandler;
     private OnErrorListener mOnErrorListener;
-    private OnInfoPreparedListener mOnInfoPreparedListener;
+    private OnAudioSourcePreparedListener mOnInfoPreparedListener;
+    private OnMediaMetadataLoaded mOnMediaMetadataLoaded;
     private static OnDecipheredListener mOnDecipheredListener;
 
     private JSONObject playerResponse;
@@ -43,12 +44,12 @@ public class VideoInfo {
         mFileHandler = new FileHandler(context);
     }
 
-    public JSONObject getPlayerResponse() {
-        return playerResponse;
+    public void setOnAudioSourcePreparedListener(OnAudioSourcePreparedListener onInfoPreparedListener) {
+        mOnInfoPreparedListener = onInfoPreparedListener;
     }
 
-    public void setOnInfoPreparedListener(OnInfoPreparedListener onInfoPreparedListener) {
-        mOnInfoPreparedListener = onInfoPreparedListener;
+    public void setOnMediaMetadataLoaded(OnMediaMetadataLoaded onMediaMetadataLoaded) {
+        mOnMediaMetadataLoaded = onMediaMetadataLoaded;
     }
 
     public void setOnErrorListener(OnErrorListener onErrorListener) {
@@ -64,7 +65,7 @@ public class VideoInfo {
 
         Log.i(TAG, "Getting video info...");
         String eurl = Uri.encode("http://kej.tw/");
-        int sts = 18523;
+        int sts = 18529;
         String link = "https://www.youtube.com/get_video_info?" +
                 jsonObjectToParam(new JSONObject(
                         "{eurl: \"" + eurl + "\"," +
@@ -88,29 +89,13 @@ public class VideoInfo {
                                 @Override
                                 public void onDeciphered(final String audioLink) {
                                     try {
-                                        final Bundle bundle = mQueueItem.getDescription().getExtras();
-                                        bundle.putBoolean("isDeciphered", true);
-                                        bundle.putInt("lengthSeconds", Integer.parseInt(
-                                                videoDetails.getString("lengthSeconds")));
-
-                                        Log.i(TAG, "Preparing video description...");
-                                        String infoLink = "https://www.youtube.com/oembed?url=youtu.be/" + mVideoId;
-                                        mFileHandler.setOnDownloadCompletedListener(new FileHandler.OnDownloadCompletedListener() {
-                                            @Override
-                                            public void onCompleted(String fileContent) {
-                                                try {
-                                                    MediaDescriptionCompat.Builder desBuilder =
-                                                            getMediaDescription(Uri.parse(audioLink),
-                                                                    new JSONObject(fileContent));
-                                                    desBuilder.setExtras(bundle);
-                                                    if(mOnInfoPreparedListener != null)
-                                                        mOnInfoPreparedListener.onPrepared(desBuilder.build());
-                                                } catch (JSONException | IOException e) {
-                                                    e.printStackTrace();
-                                                }
-                                            }
-                                        });
-                                        mFileHandler.downloadFile(infoLink, "info_" + mVideoId);
+                                        MediaMetadataCompat metadata = new MediaMetadataCompat.Builder()
+                                                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION,
+                                                        Integer.parseInt(videoDetails.getString("lengthSeconds")) * 1000)
+                                                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, audioLink)
+                                                .build();
+                                        if(mOnInfoPreparedListener != null)
+                                            mOnInfoPreparedListener.onPrepared(metadata);
                                     } catch (JSONException e) {
                                         e.printStackTrace();
                                     }
@@ -148,6 +133,7 @@ public class VideoInfo {
             WebSettings webSettings = wv.getSettings();
             webSettings.setJavaScriptEnabled(true);
             webSettings.setDomStorageEnabled(true);
+            webSettings.setAppCacheEnabled(true);
             wv.loadUrl("file:///android_asset/decipher.html");
 
             final Handler timeOutHandler = new Handler();
@@ -179,15 +165,29 @@ public class VideoInfo {
         }
     }
 
-    private MediaDescriptionCompat.Builder getMediaDescription(Uri audioUri, JSONObject videoInfo)
-            throws IOException, JSONException {
-        MediaDescriptionCompat.Builder builder = new MediaDescriptionCompat.Builder()
-                .setTitle(videoInfo.getString("title"))
-                .setSubtitle(videoInfo.getString("author_name"))
-                .setIconUri(Uri.parse(videoInfo.getString("thumbnail_url")))
-                .setMediaUri(audioUri)
-                .setExtras(new Bundle());
-        return builder;
+    void getMediaMetadata() {
+        if(mQueueItem == null) return;
+        final String videoId = mQueueItem.getDescription().getExtras().getString("videoId");
+        String link = "https://www.youtube.com/oembed?url=youtu.be/" + videoId;
+        mFileHandler.setOnDownloadCompletedListener(new FileHandler.OnDownloadCompletedListener() {
+            @Override
+            public void onCompleted(String fileContent) {
+                try {
+                    JSONObject oembedInfo = new JSONObject(fileContent);
+                    Bundle bundle = mQueueItem.getDescription().getExtras();
+                    bundle.putBoolean("hasMetadata", true);
+                    MediaDescriptionCompat.Builder des = new MediaDescriptionCompat.Builder()
+                            .setTitle(oembedInfo.getString("title"))
+                            .setSubtitle(oembedInfo.getString("author_name"))
+                            .setIconUri(Uri.parse(oembedInfo.getString("thumbnail_url")))
+                            .setExtras(bundle);
+                    if(mOnMediaMetadataLoaded != null) mOnMediaMetadataLoaded.onLoaded(des);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        mFileHandler.downloadFile(link, "des_" + mQueueItem.getDescription().getExtras().getString("videoId"));
     }
 
     static String jsonObjectToParam(JSONObject object) throws JSONException {
@@ -210,8 +210,12 @@ public class VideoInfo {
         return paramObject;
     }
 
-    public interface OnInfoPreparedListener {
-        void onPrepared(MediaDescriptionCompat description);
+    public interface OnAudioSourcePreparedListener {
+        void onPrepared(MediaMetadataCompat metadata);
+    }
+
+    public interface OnMediaMetadataLoaded {
+        void onLoaded(MediaDescriptionCompat.Builder builder);
     }
 
     public interface OnErrorListener {

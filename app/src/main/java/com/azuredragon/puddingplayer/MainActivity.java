@@ -1,17 +1,12 @@
 package com.azuredragon.puddingplayer;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.DialogCompat;
 
-import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -25,6 +20,7 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -36,7 +32,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -158,6 +154,7 @@ public class MainActivity extends AppCompatActivity {
                     mHandler.removeCallbacks(r);
                     mHandler = null;
                 }
+                refreshPlaylist(new ArrayList<MediaSessionCompat.QueueItem>());
             }
             if(state.getState() == PlaybackStateCompat.STATE_PLAYING) {
                 if(mHandler == null) {
@@ -425,6 +422,18 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+        Button clearList = findViewById(R.id.clearList);
+        clearList.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                List<MediaSessionCompat.QueueItem> list =
+                        MediaControllerCompat.getMediaController(MainActivity.this).getQueue();
+                for(int i = 0; i < list.size(); i++) {
+                    mController.removeQueueItem(list.get(i).getDescription());
+                }
+                mController.getTransportControls().stop();
+            }
+        });
         final SeekBar posSeekBar = findViewById(R.id.posSeekBar);
         posSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -508,6 +517,7 @@ public class MainActivity extends AppCompatActivity {
 
     void refreshPlaylist(List<MediaSessionCompat.QueueItem> queue) {
         ListView playlistView = findViewById(R.id.playlistView);
+        int pos = playlistView.getScrollY();
         String[] str = new String[queue.size()];
         for(int i = 0; i < queue.size(); i++) {
             if(queue.get(i).getDescription().getTitle() == null) {
@@ -521,6 +531,13 @@ public class MainActivity extends AppCompatActivity {
                 this,
                 android.R.layout.simple_list_item_1,
                 str));
+        playlistView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                MediaControllerCompat.getMediaController(MainActivity.this).getTransportControls().skipToQueueItem(id);
+            }
+        });
+        playlistView.setScrollY(pos);
     }
 
     interface listener {

@@ -25,20 +25,17 @@
 
         <service android:name=".PlaybackService">
             <intent-filter>
-                <action android:name="android.nmedia.browse.MediaBrowserService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
 
 
-        <activity android:name=".HomeActivity">
+        <activity android:name=".MainActivity" android:configChanges="orientation|screenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-
-        <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
 

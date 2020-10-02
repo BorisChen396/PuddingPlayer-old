@@ -23,4 +23,5 @@
     <string name="dialog_btn_addAnyway">新增至序列</string>
     <string name="dialog_title_addPlaylist">新增播放清單</string>
     <string name="dialog_msg_addPlaylist">正在取得資訊......</string>
+    <string name="button_clearList">清空播放清單</string>
 </resources>

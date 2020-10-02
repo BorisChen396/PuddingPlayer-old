@@ -29,17 +29,23 @@ import androidx.core.app.NotificationCompat;
 import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.session.MediaButtonReceiver;
 
+import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 public class PlaybackService extends MediaBrowserServiceCompat {
     String TAG = "PlaybackService";
     boolean isRunning = false;
+    boolean autoplay = true;
 
     BecomingNoisyReceiver mReceiver;
+    static boolean isReceiverRegistered = false;
 
     MediaSessionCompat session;
     AudioManager audioManager;
@@ -52,9 +58,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         super.onCreate();
         isRunning = true;
         session = new MediaSessionCompat(this, TAG);
-        session.setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
-                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         session.setPlaybackState(new PlaybackStateCompat.Builder()
                 .setState(PlaybackStateCompat.STATE_NONE, 0, 1)
                 .setActions(
@@ -76,6 +79,37 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         mManager = new MediaNotificationManager(this);
 
         mReceiver = new BecomingNoisyReceiver();
+
+
+        FileHandler fileHandler = new FileHandler(PlaybackService.this);
+        if(fileHandler.checkFileExistance(FileHandler.APPLICATION_DATA_DIR + "playlist_nowPlaying")) {
+            fileHandler.setOnFileLoadedListener(new FileHandler.OnFileLoadedListener() {
+                @Override
+                public void onFileLoaded(String fileContent) {
+                    try {
+                        JSONArray saveList = new JSONArray(fileContent);
+                        for(int i = 0; i < saveList.length(); i++) {
+                            autoplay = false;
+                            String videoId = saveList.getString(i);
+                            Bundle bundle = new Bundle();
+                            bundle.putString("videoId", videoId);
+                            bundle.putBoolean("isDeciphered", false);
+                            session.getController().addQueueItem(
+                                    new MediaDescriptionCompat.Builder()
+                                            .setExtras(bundle)
+                                            .build());
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            try {
+                fileHandler.loadFile("playlist_nowPlaying");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
@@ -108,15 +142,77 @@ public class PlaybackService extends MediaBrowserServiceCompat {
 
     MediaSessionCompat.Callback sessionCallback = new MediaSessionCompat.Callback() {
         long mediaButtonLastCalled;
+        List<Runnable> loadMetadataTasks = new ArrayList<>();
+        Thread loadMetadata;
+        boolean isLoadingMetadata = false;
+
+        @Override
+        public void onRemoveQueueItem(MediaDescriptionCompat description) {
+            super.onRemoveQueueItem(description);
+            List<MediaSessionCompat.QueueItem> list = session.getController().getQueue();
+            for(int i = 0; i < list.size(); i++) {
+                if(list.get(i).getDescription().getExtras().getString("videoId").equals(
+                        description.getExtras().getString("videoId"))) {
+                    if(i == currentItem) session.getController().getTransportControls().skipToNext();
+                    list.remove(i);
+                    i--;
+                }
+            }
+            session.setQueue(list);
+        }
 
         @Override
         public void onAddQueueItem(MediaDescriptionCompat description) {
             super.onAddQueueItem(description);
-            List<MediaSessionCompat.QueueItem> queue = session.getController().getQueue();
-            if(queue == null) queue = new ArrayList<>();
-            queue.add(new MediaSessionCompat.QueueItem(description, queue.size()));
-            session.setQueue(queue);
-            if(queue.size() == 1) onSkipToQueueItem(0);
+            final List<MediaSessionCompat.QueueItem> queueItemList;
+            if(session.getController().getQueue() != null) {
+                queueItemList = session.getController().getQueue();
+            }
+            else {
+                queueItemList = new ArrayList<>();
+            }
+            queueItemList.add(new MediaSessionCompat.QueueItem(description, queueItemList.size()));
+            session.setQueue(queueItemList);
+
+
+            loadMetadataTasks.add(new Runnable() {
+                @Override
+                public void run() {
+                    final MediaSessionCompat.QueueItem mQueue = queueItemList.get(queueItemList.size() - 1);
+                    Log.i(TAG, "Executing #" + (queueItemList.size() - 1));
+                    VideoInfo videoInfo = new VideoInfo(PlaybackService.this, mQueue);
+                    videoInfo.setOnMediaMetadataLoaded(new VideoInfo.OnMediaMetadataLoaded() {
+                        @Override
+                        public void onLoaded(MediaDescriptionCompat.Builder builder) {
+                            List<MediaSessionCompat.QueueItem> list = session.getController().getQueue();
+                            MediaDescriptionCompat des = builder.setMediaUri(mQueue.getDescription().getMediaUri()).build();
+                            list.set((int) mQueue.getQueueId(), new MediaSessionCompat.QueueItem(des, mQueue.getQueueId()));
+                            session.setQueue(list);
+                            isLoadingMetadata = false;
+                        }
+                    });
+                    videoInfo.getMediaMetadata();
+                }
+            });
+
+            if(loadMetadata == null) {
+                loadMetadata = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        while (loadMetadataTasks.size() > 0) {
+                            if (!isLoadingMetadata) {
+                                isLoadingMetadata = true;
+                                new Thread(loadMetadataTasks.get(0)).start();
+                                loadMetadataTasks.remove(0);
+                            }
+                        }
+                        loadMetadata = null;
+                    }
+                });
+                loadMetadata.start();
+            }
+
+            if(queueItemList.size() == 1 && autoplay) onSkipToQueueItem(0);
         }
 
         @Override
@@ -132,7 +228,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                             new NotificationCompat.Action[0]
                     ));
             if(!PlayerClass.isNull()) PlayerClass.stopPlayer();
-            Log.i(TAG, "Skipping to " + id);
             currentItem = (int)id;
             session.setPlaybackState(
                     new PlaybackStateCompat.Builder(session.getController().getPlaybackState())
@@ -141,16 +236,27 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             MediaSessionCompat.QueueItem queueItem = session.getController().getQueue().get((int)id);
             if(!queueItem.getDescription().getExtras().getBoolean("isDeciphered")) {
                 VideoInfo videoInfo = new VideoInfo(PlaybackService.this, queueItem);
-                videoInfo.setOnInfoPreparedListener(new VideoInfo.OnInfoPreparedListener() {
+                videoInfo.setOnAudioSourcePreparedListener(new VideoInfo.OnAudioSourcePreparedListener() {
                     @Override
-                    public void onPrepared(MediaDescriptionCompat description) {
-                        Log.i(TAG, description.toString());
+                    public void onPrepared(MediaMetadataCompat metadata) {
                         List<MediaSessionCompat.QueueItem> queueItemList = session.getController().getQueue();
-                        queueItemList.set((int)id, new MediaSessionCompat.QueueItem(description, id));
+                        MediaDescriptionCompat des = new MediaDescriptionCompat.Builder()
+                                .setTitle(queueItemList.get((int) id).getDescription().getTitle())
+                                .setSubtitle(queueItemList.get((int) id).getDescription().getSubtitle())
+                                .setIconUri(queueItemList.get((int) id).getDescription().getIconUri())
+                                .setExtras(queueItemList.get((int) id).getDescription().getExtras())
+                                .setMediaUri(Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI)))
+                                .build();
+                        queueItemList.set((int)id, new MediaSessionCompat.QueueItem(des, id));
                         session.setQueue(queueItemList);
+                        currentItem = (int)id;
                         session.getController().getTransportControls().playFromUri(
                                 queueItemList.get((int) id).getDescription().getMediaUri(),
                                 queueItemList.get((int) id).getDescription().getExtras());
+                        session.setMetadata(new MediaMetadataCompat.Builder(metadata)
+                                .putText(MediaMetadataCompat.METADATA_KEY_TITLE, des.getTitle())
+                                .putText(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, des.getSubtitle())
+                                .build());
                     }
                 });
                 try {
@@ -173,13 +279,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             final MediaDescriptionCompat des = session.getController().getQueue().get(currentItem).getDescription();
             boolean albumExistance = fileHandler.checkFileExistance(
                     FileHandler.APPLICATION_DATA_DIR + "album_" + videoId);
-            MediaMetadataCompat metadata = new MediaMetadataCompat.Builder()
-                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, des.getTitle().toString())
-                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, des.getTitle().toString())
-                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, des.getSubtitle().toString())
-                    .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, des.getExtras().getInt("lengthSeconds") * 1000)
-                    .build();
-            session.setMetadata(metadata);
             if(!albumExistance) {
                 startForeground(MediaNotificationManager.NOTIFICATION_ID,
                         mManager.getNotification(
@@ -288,7 +387,10 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                             MediaNotificationManager.mNextIntent
                     }));
 
-            registerReceiver(mReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
+            if(!isReceiverRegistered) {
+                registerReceiver(mReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
+                isReceiverRegistered = true;
+            }
             PlayerClass.resumePlayer();
         }
 
@@ -340,8 +442,29 @@ public class PlaybackService extends MediaBrowserServiceCompat {
         public void onStop() {
             super.onStop();
             stopForeground(true);
-            unregisterReceiver(mReceiver);
+            if(isReceiverRegistered) {
+                unregisterReceiver(mReceiver);
+                isReceiverRegistered = false;
+            }
+            session.setMetadata(new MediaMetadataCompat.Builder().build());
+            session.setPlaybackState(new PlaybackStateCompat.Builder(session.getController().getPlaybackState())
+                    .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
+                    .build());
             PlayerClass.stopPlayer();
+
+            try {
+                JSONArray saveList = new JSONArray();
+                for(int i = 0; i < session.getController().getQueue().size(); i++) {
+                    saveList.put(i,
+                            session.getController().getQueue().get(i).getDescription()
+                                    .getExtras().getString("videoId"));
+                }
+                FileHandler fileHandler = new FileHandler(PlaybackService.this);
+                fileHandler.saveFile(saveList.toString(), "playlist_nowPlaying", true);
+            } catch (IOException | JSONException e) {
+                e.printStackTrace();
+            }
+
             stopService(new Intent(PlaybackService.this, PlaybackService.class));
         }
 
@@ -370,7 +493,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                         break;
 
                     case KeyEvent.KEYCODE_MEDIA_NEXT:
-                        Log.i(TAG, keyEvent.toString() +  ", CurrentTime=" + System.currentTimeMillis());
                         controller.getTransportControls().skipToNext();
                         break;
 

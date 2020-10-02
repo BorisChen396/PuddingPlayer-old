@@ -22,4 +22,5 @@
     <string name="dialog_btn_cancel">Cancel</string>
     <string name="dialog_title_addPlaylist">Add Playlist</string>
     <string name="dialog_msg_addPlaylist">Getting information...</string>
+    <string name="button_clearList">Clear List</string>
 </resources>
