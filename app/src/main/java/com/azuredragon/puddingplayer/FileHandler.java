@@ -4,7 +4,6 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -136,7 +135,6 @@ public class FileHandler {
             if(!file.createNewFile()) throw new IOException("Unable to create the specific file.");
         }
         if(!file.canWrite()) throw new IOException("Unable to write the specific file.");
-        Log.i("FileHandler", content.getBytes().length + "");
         FileOutputStream output = new FileOutputStream(file);
         output.write(content.getBytes(), 0, content.getBytes().length);
         output.flush();

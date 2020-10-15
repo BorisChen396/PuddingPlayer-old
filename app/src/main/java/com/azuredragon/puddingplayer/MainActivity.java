@@ -431,7 +431,9 @@ public class MainActivity extends AppCompatActivity {
                 for(int i = 0; i < list.size(); i++) {
                     mController.removeQueueItem(list.get(i).getDescription());
                 }
-                mController.getTransportControls().stop();
+                if(mState.getState() != PlaybackStateCompat.STATE_NONE) {
+                    mController.getTransportControls().stop();
+                }
             }
         });
         final SeekBar posSeekBar = findViewById(R.id.posSeekBar);

@@ -122,6 +122,20 @@ public class PlaybackService extends MediaBrowserServiceCompat {
     public void onDestroy() {
         super.onDestroy();
         if(!PlayerClass.isNull()) PlayerClass.stopPlayer();
+
+        try {
+            JSONArray saveList = new JSONArray();
+            for(int i = 0; i < session.getController().getQueue().size(); i++) {
+                saveList.put(i,
+                        session.getController().getQueue().get(i).getDescription()
+                                .getExtras().getString("videoId"));
+            }
+            FileHandler fileHandler = new FileHandler(PlaybackService.this);
+            fileHandler.saveFile(saveList.toString(), "playlist_nowPlaying", true);
+        } catch (IOException | JSONException e) {
+            e.printStackTrace();
+        }
+
         session.setActive(false);
         session = null;
         isRunning = false;
@@ -179,12 +193,19 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                 @Override
                 public void run() {
                     final MediaSessionCompat.QueueItem mQueue = queueItemList.get(queueItemList.size() - 1);
-                    Log.i(TAG, "Executing #" + (queueItemList.size() - 1));
                     VideoInfo videoInfo = new VideoInfo(PlaybackService.this, mQueue);
                     videoInfo.setOnMediaMetadataLoaded(new VideoInfo.OnMediaMetadataLoaded() {
                         @Override
                         public void onLoaded(MediaDescriptionCompat.Builder builder) {
+                            if(session == null) {
+                                isLoadingMetadata = false;
+                                return;
+                            }
                             List<MediaSessionCompat.QueueItem> list = session.getController().getQueue();
+                            if(list.size() == 0) {
+                                isLoadingMetadata = false;
+                                return;
+                            }
                             MediaDescriptionCompat des = builder.setMediaUri(mQueue.getDescription().getMediaUri()).build();
                             list.set((int) mQueue.getQueueId(), new MediaSessionCompat.QueueItem(des, mQueue.getQueueId()));
                             session.setQueue(list);
@@ -200,6 +221,11 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                     @Override
                     public void run() {
                         while (loadMetadataTasks.size() > 0) {
+                            if(session.getController().getQueue().size() == 0) {
+                                loadMetadataTasks.clear();
+                                autoplay = true;
+                                break;
+                            }
                             if (!isLoadingMetadata) {
                                 isLoadingMetadata = true;
                                 new Thread(loadMetadataTasks.get(0)).start();
@@ -451,19 +477,6 @@ public class PlaybackService extends MediaBrowserServiceCompat {
                     .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
                     .build());
             PlayerClass.stopPlayer();
-
-            try {
-                JSONArray saveList = new JSONArray();
-                for(int i = 0; i < session.getController().getQueue().size(); i++) {
-                    saveList.put(i,
-                            session.getController().getQueue().get(i).getDescription()
-                                    .getExtras().getString("videoId"));
-                }
-                FileHandler fileHandler = new FileHandler(PlaybackService.this);
-                fileHandler.saveFile(saveList.toString(), "playlist_nowPlaying", true);
-            } catch (IOException | JSONException e) {
-                e.printStackTrace();
-            }
 
             stopService(new Intent(PlaybackService.this, PlaybackService.class));
         }

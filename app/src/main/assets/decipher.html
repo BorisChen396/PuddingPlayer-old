@@ -2,18 +2,30 @@
     <head>
         <script>
             function decipher(s) {
-                Android.decipherCompleted(lv(s));
+                Android.decipherCompleted(qv(s));
             }
 
-            lv=function(a){a=a.split("");kv.yj(a,1);kv.Ow(a,65);kv.yj(a,2);return a.join("")};
-
-            var kv={
-            tF:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b%a.length]=c},
-            yj:function(a,b){a.splice(0,b)},
-            Ow:function(a){a.reverse()}
+            qv = function(a) {
+                a = a.split("");
+                pv.wc(a, 46);
+                pv.U6(a, 15);
+                pv.wc(a, 78);
+                return a.join("")
             };
 
-
+            var pv = {
+                U6: function(a, b) {
+                    var c = a[0];
+                    a[0] = a[b % a.length];
+                    a[b % a.length] = c
+                },
+                wc: function(a) {
+                    a.reverse()
+                },
+                B2: function(a, b) {
+                    a.splice(0, b)
+                }
+            };
         </script>
     </head>
     <body>

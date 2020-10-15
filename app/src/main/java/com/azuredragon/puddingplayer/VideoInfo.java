@@ -65,7 +65,7 @@ public class VideoInfo {
 
         Log.i(TAG, "Getting video info...");
         String eurl = Uri.encode("http://kej.tw/");
-        int sts = 18529;
+        int sts = 18547;
         String link = "https://www.youtube.com/get_video_info?" +
                 jsonObjectToParam(new JSONObject(
                         "{eurl: \"" + eurl + "\"," +

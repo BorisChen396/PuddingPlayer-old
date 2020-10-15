@@ -80,7 +80,7 @@ public class MediaNotificationManager {
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         int[] a = new int[actions.length];
         for(int i = 0; i < actions.length; i++) a[i] = i;
-        notifyBuilder.setContentTitle(des.getTitle())
+        notifyBuilder.setContentTitle(des.getTitle() == null ? des.getExtras().getString("videoId") : des.getTitle())
                 .setContentText(des.getSubtitle())
                 .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
                         .setMediaSession(token)

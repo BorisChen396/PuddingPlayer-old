@@ -7,6 +7,7 @@ import android.os.PowerManager;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -36,7 +37,6 @@ public class PlayerClass {
                 .createWifiLock(WifiManager.WIFI_MODE_FULL, "wifilock");
         wifiLock.acquire();
         player.setOnPreparedListener(playerPrepared);
-        player.setOnBufferingUpdateListener(playerBuffering);
         player.setOnCompletionListener(playerCompleted);
         player.setOnErrorListener(playerError);
     }
@@ -84,6 +84,7 @@ public class PlayerClass {
         @Override
         public void onPrepared(MediaPlayer mp) {
             isCompleted = false;
+            player.setOnBufferingUpdateListener(playerBuffering);
             controller.getTransportControls().play();
         }
     };
