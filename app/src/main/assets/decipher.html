@@ -2,29 +2,34 @@
     <head>
         <script>
             function decipher(s) {
-                Android.decipherCompleted(qv(s));
+                Android.decipherCompleted(Av(s));
             }
 
-            qv = function(a) {
-                a = a.split("");
-                pv.wc(a, 46);
-                pv.U6(a, 15);
-                pv.wc(a, 78);
-                return a.join("")
+            Av = function (a) {
+	        a = a.split("");
+	        zv.Ja(a, 69);
+	        zv.yK(a, 54);
+	        zv.V7(a, 2);
+	        zv.Ja(a, 56);
+	        zv.V7(a, 1);
+	        zv.yK(a, 12);
+	        zv.V7(a, 3);
+	        zv.yK(a, 16);
+	        return a.join("")
             };
 
-            var pv = {
-                U6: function(a, b) {
-                    var c = a[0];
-                    a[0] = a[b % a.length];
-                    a[b % a.length] = c
-                },
-                wc: function(a) {
-                    a.reverse()
-                },
-                B2: function(a, b) {
-                    a.splice(0, b)
-                }
+            var zv = {
+	        V7: function (a, b) {
+		    a.splice(0, b)
+	        },
+	        yK: function (a) {
+		    a.reverse()
+	        },
+	        Ja: function (a, b) {
+	            var c = a[0];
+		    a[0] = a[b % a.length];
+		    a[b % a.length] = c
+	        }
             };
         </script>
     </head>
